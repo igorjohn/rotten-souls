@@ -22,7 +22,12 @@ const MAX_HEALTH = 420
 const WALK_SPEED = 2.4
 const CHARGE_SPEED = 4.6
 const TURN_SPEED = 3.4
-const TURN_SPEED_ATTACKING = 1.1
+/**
+ * Quanto ele corrige a mira durante o golpe. Alto demais e esquivar de lado
+ * não funciona, porque ele acompanha o rolamento. Este número é o que decide
+ * se a luta é justa.
+ */
+const TURN_SPEED_ATTACKING = 0.5
 
 /** Distância em que ele começa a atacar em vez de andar. */
 const STRIKE_RANGE = 5.2
@@ -53,8 +58,8 @@ interface Phase {
 }
 
 const PHASES: [Phase, Phase] = [
-  { speed: 1, damage: 1, cooldown: [1.5, 2.4], comboChance: 0.18 },
-  { speed: 1.28, damage: 1.2, cooldown: [0.75, 1.35], comboChance: 0.55 },
+  { speed: 1, damage: 1, cooldown: [1.9, 2.9], comboChance: 0.14 },
+  { speed: 1.22, damage: 1.15, cooldown: [1.15, 1.85], comboChance: 0.38 },
 ]
 
 export class Boss implements Damageable {
@@ -138,7 +143,7 @@ export class Boss implements Damageable {
   wake(): void {
     if (this.state !== 'dormant') return
     this.state = 'idle'
-    this.cooldown = 1.1
+    this.cooldown = 1.8
   }
 
   reset(): void {

@@ -89,3 +89,14 @@ Uma linha por decisão, com data e motivo. Inclui troca de asset e corte de esco
 ## 2026-09-08, correção reportada pelo Igor
 
 - **A e D estavam invertidos desde o M1.** O vetor "direita" da câmera estava com o sinal trocado: `getRight` devolvia `(cos yaw, 0, -sin yaw)`, que é a esquerda. A direita é `frente cruzado com cima`, e num sistema destro com Y pra cima isso dá `(-cos yaw, 0, sin yaw)`. Conferido de três formas: pela álgebra do produto vetorial, medindo o deslocamento com a tecla pressionada, e projetando o vetor na tela pra ver em que metade ele cai. O erro também deslocava a câmera pro ombro errado, então a composição mudou junto.
+
+## 2026-09-08, balanceamento depois do Igor jogar
+
+Reclamação: "eu dou hit no boss mas eu perco vida muito fácil".
+
+- **Perseguição durante o golpe de 1,1 para 0,5 rad/s.** Era a causa principal, e não o dano. Num golpe de um segundo ele girava 63 graus atrás do jogador, então rolar pro lado não saía do caminho: ele acompanhava o rolamento. Agora a esquiva compensa a leitura, que é o contrato do gênero.
+- **Dano do chefe pra baixo:** corte alto de 32 para 24, varredura de 24 para 18, estocada de 21 para 16. Multiplicador da segunda fase de 1,2 para 1,15. O corte alto matava em 4 golpes na primeira fase e 3 na segunda; agora são 5 e 4.
+- **Invencibilidade do rolamento de 0,36 s para 0,44 s**, dentro dos mesmos 0,62 s de animação. Generoso de propósito: o chefe é grande e os golpes são largos.
+- **Folga depois de apanhar de 0,30 s para 0,55 s,** pra emenda de golpes não matar em cadeia.
+- **Intervalo entre golpes** de 1,5-2,4 s para 1,9-2,9 s na primeira fase, e de 0,75-1,35 s para 1,15-1,85 s na segunda. Chance de emenda na segunda fase de 55% para 38%. É o que cria a janela de punição.
+- **Avanço da estocada de 7,5 para 5,4 m/s e alcance de 4,6 para 4,2 m.** Ela alcançava de longe demais pra ser lida a tempo.

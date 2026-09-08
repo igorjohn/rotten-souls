@@ -24,8 +24,13 @@ const TURN_LOCKED = 16
 const DODGE_TIME = 0.62
 const DODGE_PEAK = 11.5
 const DODGE_COST = 25
-const IFRAME_START = 0.06
-const IFRAME_END = 0.42
+/**
+ * Janela de invencibilidade dentro do rolamento de 0,62 s. São 0,44 s de
+ * imunidade, generoso de propósito: o chefe é grande, os golpes são largos, e
+ * sem isso a esquiva vira sorte em vez de leitura.
+ */
+const IFRAME_START = 0.05
+const IFRAME_END = 0.49
 
 const RUN_DRAIN = 12
 const STAMINA_REGEN = 26
@@ -33,7 +38,8 @@ const REGEN_DELAY = 0.55
 const SPENT_DELAY = 1.2
 
 const HIT_STAGGER = 0.42
-const HIT_IFRAMES = 0.3
+/** Respiro depois de apanhar, pra emenda de golpes não matar em cadeia. */
+const HIT_IFRAMES = 0.55
 const LOCK_RANGE = 26
 
 const CLIPS = {
