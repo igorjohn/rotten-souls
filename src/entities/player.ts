@@ -162,6 +162,11 @@ export class Player implements Damageable {
     return this.staminaSpent
   }
 
+  /** Tem fôlego pra mais um comando. Sem isso o golpe nem sai. */
+  private get canAct(): boolean {
+    return this.character.stamina > 0
+  }
+
   respawn(): void {
     this.character.teleport(PLAYER_SPAWN)
     this.character.snapTo(SPAWN_FACING)
@@ -310,13 +315,18 @@ export class Player implements Damageable {
       this.startDodge()
       return
     }
-    if (this.recovery <= 0) {
-      if (this.input.consume('light') && this.spend(PLAYER_ATTACKS.light.stamina)) {
+    // A estamina e conferida antes de consumir o comando, nao depois: como
+    // `consume` apaga o clique do buffer, a ordem invertida engolia em silencio
+    // todo clique dado sem folego, e o jogador ficava clicando contra o nada.
+    if (this.recovery <= 0 && this.canAct) {
+      if (this.input.consume('light')) {
+        this.spend(PLAYER_ATTACKS.light.stamina)
         this.chain = 1
         this.startAttack(PLAYER_ATTACKS.light)
         return
       }
-      if (this.input.consume('heavy') && this.spend(PLAYER_ATTACKS.heavy.stamina)) {
+      if (this.input.consume('heavy')) {
+        this.spend(PLAYER_ATTACKS.heavy.stamina)
         this.chain = 0
         this.startAttack(PLAYER_ATTACKS.heavy)
         return
@@ -480,11 +490,8 @@ export class Player implements Damageable {
         this.startDodge()
         return
       }
-      if (
-        this.chain < MAX_CHAIN &&
-        this.input.consume('light') &&
+      if (this.chain < MAX_CHAIN && this.canAct && this.input.consume('light')) {
         this.spend(PLAYER_ATTACKS.light.stamina)
-      ) {
         this.chain++
         this.attack = null
         this.startAttack(PLAYER_ATTACKS.light)

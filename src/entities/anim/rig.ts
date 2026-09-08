@@ -81,7 +81,7 @@ export function createRig(gltf: GLTF, options: RigOptions = {}): Rig {
   const clips = new Map<string, AnimationClip>()
   for (const clip of gltf.animations) clips.set(clip.name, clip)
 
-  const actions = new Map<string, AnimationAction>()
+  const actions = new Map<string, [AnimationAction, AnimationAction]>()
   let current: AnimationAction | null = null
   let currentName: string | null = null
   const listeners: Array<(clip: string) => void> = []
@@ -92,7 +92,20 @@ export function createRig(gltf: GLTF, options: RigOptions = {}): Rig {
     if (name) for (const fn of listeners) fn(name)
   })
 
-  function action(clip: string): AnimationAction | null {
+  /**
+   * Duas instâncias por clipe, e não uma.
+   *
+   * O `AnimationMixer` indexa a ação pelo clipe, então pedir o mesmo clipe duas
+   * vezes devolve o mesmo objeto. Isso quebrava o encadeamento de golpes: o
+   * segundo leve é o mesmo `Sword_Attack` do primeiro, e como `crossFadeFrom`
+   * precisa de duas ações diferentes, o `play` caía num `reset()` seco. A mão
+   * do personagem saltava 125 cm num quadro, no meio do corte, voltando pra
+   * pose de preparação. Era isso que aparecia como travada ao clicar rápido.
+   *
+   * Uma cópia do clipe tem outro uuid e rende uma segunda ação, então dá pra
+   * alternar entre as duas e misturar um golpe com o seguinte de verdade.
+   */
+  function actionPair(clip: string): [AnimationAction, AnimationAction] | null {
     const existing = actions.get(clip)
     if (existing) return existing
     const source = clips.get(clip)
@@ -100,7 +113,10 @@ export function createRig(gltf: GLTF, options: RigOptions = {}): Rig {
       console.warn(`[rig] clipe ausente: ${clip}`)
       return null
     }
-    const created = mixer.clipAction(source)
+    const created: [AnimationAction, AnimationAction] = [
+      mixer.clipAction(source),
+      mixer.clipAction(source.clone()),
+    ]
     actions.set(clip, created)
     return created
   }
@@ -116,8 +132,11 @@ export function createRig(gltf: GLTF, options: RigOptions = {}): Rig {
     },
     play(clip, playOptions = {}) {
       if (currentName === clip && !playOptions.restart) return
-      const next = action(clip)
-      if (!next) return
+      const pair = actionPair(clip)
+      if (!pair) return
+      // Se o clipe pedido é o que já está tocando, usa a outra instância: é o
+      // que dá o que misturar em vez de cortar seco no meio do movimento.
+      const next = pair[0] === current ? pair[1] : pair[0]
 
       const fade = playOptions.fade ?? 0.18
       next.enabled = true
@@ -151,9 +170,12 @@ export function createRig(gltf: GLTF, options: RigOptions = {}): Rig {
   }
 }
 
-function findName(actions: Map<string, AnimationAction>, action: AnimationAction): string | null {
-  for (const [name, candidate] of actions) {
-    if (candidate === action) return name
+function findName(
+  actions: Map<string, [AnimationAction, AnimationAction]>,
+  action: AnimationAction,
+): string | null {
+  for (const [name, pair] of actions) {
+    if (pair[0] === action || pair[1] === action) return name
   }
   return null
 }

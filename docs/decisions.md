@@ -174,3 +174,40 @@ trocar um chefe que funciona por um bonito que se desmonta andando.
 
 - 2026-09-08: corte no ar deixou de ser 100% sintetizado. Nove amostras gravadas de lâmina, fatiadas do vídeo `4bJI-e28kFg` por `scripts/trim-swings.py` (detecção de silêncio, pico normalizado em -1 dBFS, mp3 mono 128k, 148 KB no total), sorteadas sem repetir a anterior. Leve e pesado saem de pitch e volume, não de bancos separados. Motivo: ruído varrido não imita o atrito da lâmina passando. Ressalva: a fonte está sob licença padrão do YouTube, sem liberação explícita, então antes de qualquer publicação essas amostras precisam ser trocadas por CC0. O código lê `manifest.json`, então a troca é só regerar a pasta.
 - 2026-09-08: `GROUND_STICK` virou `GROUND_STICK_SPEED`, velocidade escalada por dt (0,6 m/s, 1 cm por tick) em vez de 5 cm fixos por tick. Motivo: o autostep do Rapier só entra quando o deslocamento pedido é mais horizontal que vertical, e andando (4,3 cm por tick) os 5 cm fixos apontavam o vetor 49 graus pra baixo, então a escadaria virava parede e só a esquiva subia. Descer não depende disso, quem cola o personagem no chão é o `enableSnapToGround`. Regressão coberta por `scripts/check-escada.mjs`.
+
+## 2026-09-08 — Encadeamento de golpes: duas ações por clipe
+
+O leve e o pesado usam o mesmo clipe `Sword_Attack`, e o `AnimationMixer`
+indexa a ação pelo clipe. Encadear um golpe no outro pedia a mesma ação de
+volta, então `crossFadeFrom` não tinha o que misturar e o `play` caía num
+`reset()` seco: medida no osso da mão, ela saltava 125 cm num quadro, no meio
+do corte, contra um pico legítimo de 88 cm no auge do golpe. Era isso que
+aparecia como travada ao clicar rápido. Agora cada clipe tem duas ações (uma
+sobre uma cópia do clipe, que tem outro uuid) e o `play` alterna entre elas.
+Depois da mudança o quadro de troca mede 36 cm e 20 cm, abaixo do pico do
+próprio golpe.
+
+## 2026-09-08 — Buffer de comando de 0,28 s para 0,45 s
+
+O leve dura 0,625 s e só aceita emenda a partir de 46% do clipe, ou seja
+0,2875 s depois de começar. O buffer de 0,28 s morria 7 ms antes da janela
+abrir, e no fim da sequência de três, quando o golpe tem que terminar inteiro,
+a espera é de 0,42 s. Medido com doze cliques a cada 110 ms: saíam 3 golpes e
+havia 1,766 s seguidos de clique sem resposta. Com 0,45 s saem 4 golpes e a
+maior parada entre eles é de 90 ms.
+
+## 2026-09-08 — Estamina conferida antes de consumir o comando
+
+`consume` apaga o clique do buffer, e a ordem `consume(...) && spend(...)`
+engolia em silêncio todo clique dado sem fôlego. Agora o fôlego é conferido
+primeiro, então o comando sobrevive no buffer até poder sair.
+
+## 2026-09-08 — Vharen definitivo volta pra trás de `?vharen`
+
+Os clipes assados no esqueleto do modelo gerado ainda saem tortos. Medido no
+rig carregado, com `Idle_Loop` parado: pé esquerdo a 0,91 m do chão e pé
+direito a 0,35 m, com deslocamento lateral de +0,63 e -0,27 em relação ao
+quadril, quando deviam estar os dois no zero e simétricos. Esqueleto e pesos
+estão sãos (24 ossos, 24 inversas, nenhum vértice sem peso), então o defeito
+está no conteúdo dos clipes, não na malha. O padrão volta a ser o mannequim,
+que se move certo, conforme a seção 9 do briefing.

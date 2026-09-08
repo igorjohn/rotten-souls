@@ -15,8 +15,17 @@ const MOUSE_TO_ACTION: Record<number, Action> = {
   1: 'lockOn',
 }
 
-/** Janela em que um comando fica guardado esperando a ação anterior terminar. */
-const BUFFER_SECONDS = 0.28
+/**
+ * Janela em que um comando fica guardado esperando a ação anterior terminar.
+ *
+ * Era 0,28 s, e isso é menos do que o jogo leva pra aceitar o comando seguinte.
+ * Medido: o leve dura 0,625 s e só pode ser emendado a partir de 46% do clipe,
+ * ou seja 0,2875 s depois de começar. O clique morria no buffer 7 ms antes da
+ * janela abrir. Pior no fim da sequência, quando o golpe tem que terminar
+ * inteiro: aí são 0,42 s de espera. Clicando rápido, medi 1,7 s seguidos de
+ * cliques que não viravam nada. O valor agora cobre os dois casos.
+ */
+const BUFFER_SECONDS = 0.45
 
 interface Buffered {
   time: number
