@@ -14,13 +14,12 @@ import {
 import type { Physics } from '../core/physics'
 import { LAYOUT, insideEntrance, ringPosition } from './layout'
 
-const STONE_DARK = new Color('#3a3b3f')
-const STONE_LIGHT = new Color('#5c5b55')
-const STONE_FLOOR = new Color('#46453f')
+const STONE_DARK = new Color('#2f3033')
+const STONE_LIGHT = new Color('#4a4942')
+const STONE_FLOOR = new Color('#24231f')
 
-function stone(color: Color, roughness = 0.95): MeshStandardNodeMaterial {
-  const material = new MeshStandardNodeMaterial({ color, roughness, metalness: 0 })
-  return material
+function stone(color: Color, roughness = 0.95, metalness = 0): MeshStandardNodeMaterial {
+  return new MeshStandardNodeMaterial({ color, roughness, metalness })
 }
 
 export interface Arena {
@@ -53,7 +52,8 @@ function buildFloor(physics: Physics): Object3D {
   // vazio entre a borda e a parede, e da pra cair por ele.
   const radius = LAYOUT.wallRadius + LAYOUT.wallThickness + 1
   const geometry = new CylinderGeometry(radius, radius, 1, 72)
-  const mesh = new Mesh(geometry, stone(STONE_FLOOR, 0.9))
+  // Rugosidade baixa: o chao e pedra gasta e molhada, entao devolve o fogo.
+  const mesh = new Mesh(geometry, stone(STONE_FLOOR, 0.45, 0.1))
   mesh.position.y = -0.5
   mesh.receiveShadow = true
   mesh.name = 'floor'

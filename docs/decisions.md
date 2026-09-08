@@ -26,3 +26,16 @@ Uma linha por decisão, com data e motivo. Inclui troca de asset e corte de esco
 - **Medidas de movimento:** andar 2,6 m/s, correr 5,6 m/s, deslize com lock-on 2,9 e 4,9 m/s. Esquiva de 0,62 s com pico de 11,5 m/s, invencibilidade de 0,06 s a 0,42 s, custo de 25 de estamina. Estamina de 100, regeneração de 26 por segundo com atraso de 0,55 s, ou 1,2 s se zerou. Corrida drena 12 por segundo.
 - **Câmera de ombro com corte por raio.** Distância base 4,3 m, 5,4 m com lock-on. Um raio do pivô até a posição desejada corta a distância quando tem parede no meio, com mínimo de 1,5 m. Com lock-on o ombro abre pra 1,05 m, senão o jogador tapa o alvo.
 - **Alvo provisório de lock-on:** um cilindro no lugar de Vharen, pra desenvolver a câmera antes de existir chefe.
+
+## 2026-09-08, M2
+
+- **Pós-processo em TSL com `PostProcessing`.** Passe de cena com MRT de cor e normal, oclusão de ambiente por GTAO em meia resolução, bloom largo e de limiar alto, tonemapping explícito, grading, vinheta e grão. Em WebGL2 a oclusão sai, que é a parte cara; o resto continua.
+- **`beginFrame` tocando o relógio dos nós à mão.** O `nodeFrame.frameId` do Three só avança dentro do loop de animação do renderer, e este projeto tem loop próprio. Sem isso, todo nó de update por frame roda uma única vez na vida: imagem congelada no primeiro frame, bloom e oclusão nunca recalculando, e `time` do TSL parado, o que deixava chama e faísca imóveis. Foi o bug mais caro do dia.
+- **`GTAONode` lido por `getTextureNode().r`.** Usar o nó direto entrega o resultado do setup, não a textura de canal único que ele desenha, e a cena inteira ia a quase zero. Sintoma: tudo vermelho, só a luz de fogo sobrevivendo.
+- **Grão e vinheta depois do tonemapping.** `outputColorTransform` desligado e `renderOutput` chamado no meio da cadeia. Antes, o grão era somado em espaço linear e explodia nas sombras; e o `clamp(0,1)` antes do tonemapping matava o alcance dinâmico do fogo.
+- **Chama e faísca por atributo de instância, não por matriz.** `SpriteNodeMaterial` num `InstancedMesh` ignora a matriz de instância, porque o sprite se orienta pra câmera em espaço de visão. Todas as 28 chamas empilhavam na origem do mundo. A posição agora vem de um atributo lido pelo `positionNode`, e a escala vem do `scaleNode`.
+- **Faísca animada inteiramente na GPU.** Origem, deriva e fase são atributos estáticos; a vida sai de `fract(time)`. Zero trabalho de CPU por frame para 140 faíscas.
+- **Nunca chamar `material.needsUpdate` em material de nós durante o look dev.** Trava a reconstrução do shader e congela o render. Custou uma rodada inteira de diagnóstico falso.
+- **Captura de tela por alvo de render, não pelo canvas.** Num canvas de WebGPU o primeiro `toDataURL` congela o conteúdo devolvido e toda captura seguinte repete a primeira imagem. O frame é redesenhado num alvo próprio e os pixels são lidos de lá, o que pode ser repetido à vontade.
+- **Valores de look aprovados:** exposição 1,32, lua 0,78, ambiente do HDRI 0,10, névoa de distância 0,0115, névoa de chão 0,042 até 2,4 m, cor da névoa `#131c29`, bloom 0,42 com raio 0,85 e limiar 0,62, oclusão 0,8, vinheta 0,8, grão 0,028. Chão com rugosidade 0,45 e metalicidade 0,1, pra devolver o fogo como poça.
+- **Painel de look dev em `F4`.** Sliders sem dependência externa, ligados direto nos uniforms do TSL.

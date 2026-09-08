@@ -9,6 +9,10 @@ import { exposeScreenshotHelper, flushScreenshot } from './debug/screenshot'
 import { Hud, setRendererBadge } from './ui/hud'
 import { buildArena } from './world/arena'
 import { buildLighting, flickerBraziers } from './world/lighting'
+import { buildFog } from './world/fx/fog'
+import { buildBrazierFx } from './world/fx/flame'
+import { buildPostFx } from './core/postfx'
+import { LookDevGui } from './debug/gui'
 import { Player } from './entities/player'
 import { CameraRig } from './entities/camera-rig'
 
@@ -28,8 +32,8 @@ async function boot(): Promise<void> {
   hud.setLoading(0.2, 'abrindo o céu')
   const env = await assets.environment(HDRI)
   ctx.scene.environment = env
-  ctx.scene.environmentIntensity = 0.3
-  ctx.scene.backgroundIntensity = 0.42
+  ctx.scene.environmentIntensity = 0.1
+  ctx.scene.backgroundIntensity = 0.45
   ctx.scene.background = env
 
   hud.setLoading(0.45, 'assentando a pedra')
@@ -39,12 +43,21 @@ async function boot(): Promise<void> {
 
   hud.setLoading(0.7, 'acendendo os braseiros')
   const lighting = buildLighting(ctx.scene)
+  const fogControls = buildFog(ctx.scene)
+  const brazierFx = buildBrazierFx(lighting.brazierPositions)
+  ctx.scene.add(brazierFx.root)
 
   hud.setLoading(0.9, 'afiando o montante')
   const input = new Input(canvas)
   const rig = new CameraRig(ctx.camera, physics)
   const player = new Player(physics, input, rig)
   ctx.scene.add(player.object)
+
+  hud.setLoading(0.96, 'compondo a imagem')
+  const postfx = buildPostFx(ctx.renderer, ctx.scene, ctx.camera, ctx.backend)
+  const applyPostSize = () => postfx.setSize(window.innerWidth || 1600, window.innerHeight || 900)
+  applyPostSize()
+  window.addEventListener('resize', applyPostSize)
 
   const stats = new StatsPanel(ctx)
   const governor = new ResolutionGovernor(ctx)
@@ -53,7 +66,7 @@ async function boot(): Promise<void> {
 
   if (import.meta.env.DEV) {
     exposeScreenshotHelper()
-    ;(window as unknown as { game: unknown }).game = { ctx, input, player, rig, arena, lighting, physics }
+    ;(window as unknown as { game: unknown }).game = { ctx, input, player, rig, arena, lighting, physics, postfx, fogControls, brazierFx }
     ;(window as unknown as { perf: () => unknown }).perf = () => ({
       ...stats.snapshot,
       backend: ctx.backend,
@@ -98,17 +111,78 @@ async function boot(): Promise<void> {
     }
   })
 
-  // O contador do WebGPU e preenchido depois do render, que e assincrono.
-  // Zerar antes de desenhar leria sempre um frame incompleto, entao o painel
-  // acumula e divide pelo numero de frames da janela.
-  ctx.renderer.info.autoReset = false
+  const captureContext = {
+    renderer: ctx.renderer,
+    drawFrame: () => postfx.render(),
+    size: () => ({
+      width: ctx.renderer.domElement.width,
+      height: ctx.renderer.domElement.height,
+    }),
+  }
 
   loop.on('render', (dt) => {
-    ctx.renderer.render(ctx.scene, ctx.camera)
-    flushScreenshot(canvas)
+    ctx.beginFrame()
+    postfx.render()
+    flushScreenshot(captureContext)
     stats.update(dt, loop.frameMs)
     governor.update(dt, loop.frameMs)
   })
+
+  if (import.meta.env.DEV) {
+    const gui = new LookDevGui()
+    const p = postfx.controls
+    gui.section('imagem')
+    gui.uniform('exposicao', p.exposure, 0.2, 2)
+    gui.uniform('saturacao', p.saturation, 0, 2)
+    gui.uniform('tom da sombra', p.shadowTint, 0, 1.5)
+    gui.uniform('tom da luz', p.highlightTint, 0, 1.5)
+    gui.uniform('vinheta', p.vignette, 0, 1.5)
+    gui.uniform('grao', p.grain, 0, 0.2, 0.002)
+    gui.section('bloom')
+    gui.uniform('forca', p.bloomStrength, 0, 2)
+    gui.uniform('raio', p.bloomRadius, 0, 1.5)
+    gui.uniform('limiar', p.bloomThreshold, 0, 2)
+    gui.section('oclusao')
+    gui.uniform('intensidade', p.aoIntensity, 0, 1)
+    gui.section('nevoa')
+    gui.uniform('distancia', fogControls.distanceDensity, 0, 0.1, 0.001)
+    gui.uniform('chao', fogControls.groundDensity, 0, 0.3, 0.002)
+    gui.uniform('altura do chao', fogControls.groundHeight, 0.5, 12, 0.1)
+    gui.section('fogo')
+    gui.uniform('brilho da chama', brazierFx.controls.flameBrightness, 0, 6)
+    gui.uniform('brilho da faisca', brazierFx.controls.sparkBrightness, 0, 6)
+    gui.add({
+      label: 'lua',
+      min: 0,
+      max: 6,
+      step: 0.05,
+      get: () => lighting.moon.intensity,
+      set: (v) => {
+        lighting.moon.intensity = v
+      },
+    })
+    gui.add({
+      label: 'preenchimento',
+      min: 0,
+      max: 1,
+      step: 0.01,
+      get: () => lighting.fill.intensity,
+      set: (v) => {
+        lighting.fill.intensity = v
+      },
+    })
+    gui.add({
+      label: 'ambiente do HDRI',
+      min: 0,
+      max: 1.5,
+      step: 0.01,
+      get: () => ctx.scene.environmentIntensity,
+      set: (v) => {
+        ctx.scene.environmentIntensity = v
+      },
+    })
+    ;(window as unknown as { gui: LookDevGui }).gui = gui
+  }
 
   hud.setLoading(1, 'pronto')
   hud.finishLoading()

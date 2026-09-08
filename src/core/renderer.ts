@@ -15,6 +15,28 @@ export interface RenderContext {
   backend: Backend
   /** Escala de resolução aplicada por cima do devicePixelRatio, ajustada em tempo real. */
   resolutionScale: number
+  /** Abre o frame: zera contadores e avança o relógio dos nós. Ver beginFrame. */
+  beginFrame(): void
+}
+
+/**
+ * O relógio interno do sistema de nós (`nodeFrame.frameId`) só avança dentro do
+ * loop de animação do próprio renderer. Este projeto tem loop próprio, com ordem
+ * de update fixa e um agendador alternativo pra desenvolvimento, então o relógio
+ * precisa ser tocado à mão.
+ *
+ * Sem isso, todo nó marcado como update por frame roda uma vez só na vida: o
+ * passe de cena congela na primeira imagem, o bloom e a oclusão nunca
+ * recalculam e o `time` do TSL fica parado, o que deixa chama e faísca imóveis.
+ */
+function beginFrame(renderer: WebGPURenderer): void {
+  const nodes = (renderer as unknown as { _nodes?: { nodeFrame: { update: () => void; frameId: number } } })._nodes
+  renderer.info.reset()
+  if (!nodes) return
+  nodes.nodeFrame.update()
+  // info.frame e somente leitura na tipagem, mas o renderer o mantem em sincronia
+  // com o relogio dos nos; aqui so espelhamos o que o loop dele faria.
+  ;(renderer.info as unknown as { frame: number }).frame = nodes.nodeFrame.frameId
 }
 
 const MAX_PIXEL_RATIO = 1.5
@@ -62,7 +84,18 @@ export async function createRenderContext(canvas: HTMLCanvasElement): Promise<Re
   const scene = new Scene()
   const camera = new PerspectiveCamera(52, 1, 0.1, 320)
 
-  const ctx: RenderContext = { renderer, scene, camera, backend, resolutionScale: 1 }
+  // Desligado porque o reset automático só acontece no loop de animação do
+  // renderer, que este projeto não usa. Quem zera é o beginFrame.
+  renderer.info.autoReset = false
+
+  const ctx: RenderContext = {
+    renderer,
+    scene,
+    camera,
+    backend,
+    resolutionScale: 1,
+    beginFrame: () => beginFrame(renderer),
+  }
   applySize(ctx)
 
   window.addEventListener('resize', () => applySize(ctx))

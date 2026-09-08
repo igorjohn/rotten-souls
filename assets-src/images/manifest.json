@@ -1,0 +1,65 @@
+{
+  "entries": [
+    {
+      "file": "concept-arena-a-anel-preservado.png",
+      "assunto": "Arena, opcao A, anel preservado",
+      "provider": "higgsfield",
+      "model": "nano_banana_pro",
+      "aspectRatio": "16:9",
+      "creditos": 2,
+      "jobId": "33882f01-517f-4b17-9791-0ab88a440fcc",
+      "createdAt": "2026-09-08"
+    },
+    {
+      "file": "concept-arena-b-anel-arruinado.png",
+      "assunto": "Arena, opcao B, anel arruinado",
+      "provider": "higgsfield",
+      "model": "nano_banana_pro",
+      "aspectRatio": "16:9",
+      "creditos": 2,
+      "jobId": "7c069ff7-4d03-4b53-8a91-31a58af03313",
+      "createdAt": "2026-09-08"
+    },
+    {
+      "file": "concept-arena-c-anfiteatro-afundado.png",
+      "assunto": "Arena, opcao C, anfiteatro afundado",
+      "provider": "higgsfield",
+      "model": "nano_banana_pro",
+      "aspectRatio": "16:9",
+      "creditos": 2,
+      "jobId": "cc4d9c3e-2cde-4bdd-8ee4-e897921f9618",
+      "createdAt": "2026-09-08"
+    },
+    {
+      "file": "concept-vharen-a-cavaleiro-brasa.png",
+      "assunto": "Vharen, opcao A, cavaleiro de brasa",
+      "provider": "higgsfield",
+      "model": "nano_banana_pro",
+      "aspectRatio": "3:4",
+      "creditos": 2,
+      "jobId": "b8c89575-ed29-4233-b07b-a303065c3969",
+      "createdAt": "2026-09-08"
+    },
+    {
+      "file": "concept-vharen-b-guardiao-lanterna.png",
+      "assunto": "Vharen, opcao B, guardiao da lanterna",
+      "provider": "higgsfield",
+      "model": "nano_banana_pro",
+      "aspectRatio": "3:4",
+      "creditos": 2,
+      "jobId": "f9c5e48b-d7d5-45d0-bd82-18ae48eefb4c",
+      "createdAt": "2026-09-08"
+    },
+    {
+      "file": "concept-vharen-c-sentinela-chifres.png",
+      "assunto": "Vharen, opcao C, sentinela de chifres",
+      "provider": "higgsfield",
+      "model": "nano_banana_pro",
+      "aspectRatio": "3:4",
+      "creditos": 2,
+      "jobId": "5a9087e2-a3c0-4d49-9b66-5f8fcabe698d",
+      "createdAt": "2026-09-08"
+    }
+  ],
+  "nota": "Os prompts completos estao em scripts/prompts/concept-01.json. Saldo Higgsfield: 68 antes, 56 depois."
+}

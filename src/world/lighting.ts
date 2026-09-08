@@ -1,7 +1,6 @@
 import {
   Color,
   DirectionalLight,
-  FogExp2,
   Group,
   HemisphereLight,
   PointLight,
@@ -20,7 +19,10 @@ export const PALETTE = {
 
 export interface Lighting {
   moon: DirectionalLight
+  fill: HemisphereLight
   braziers: PointLight[]
+  /** Onde a bacia de cada braseiro fica, pro efeito de fogo se plantar em cima. */
+  brazierPositions: Vector3[]
   root: Group
 }
 
@@ -32,9 +34,7 @@ export function buildLighting(scene: Scene): Lighting {
   const root = new Group()
   root.name = 'lighting'
 
-  scene.fog = new FogExp2(PALETTE.void.getHex(), 0.026)
-
-  const moon = new DirectionalLight(PALETTE.moon.getHex(), 2.1)
+  const moon = new DirectionalLight(PALETTE.moon.getHex(), 0.78)
   moon.name = 'moon'
   // De trás e de cima da arena, olhando pro centro.
   moon.position.set(-26, 34, -30)
@@ -53,14 +53,17 @@ export function buildLighting(scene: Scene): Lighting {
   root.add(moon, moon.target)
 
   // Preenchimento mínimo pra sombra não virar preto chapado. Frio em cima, terra embaixo.
-  const fill = new HemisphereLight(PALETTE.moon.getHex(), 0x1a1712, 0.22)
+  const fill = new HemisphereLight(PALETTE.moon.getHex(), 0x140f0a, 0.06)
   root.add(fill)
 
   const braziers = buildBraziers()
   for (const light of braziers) root.add(light)
+  const brazierPositions = braziers.map(
+    (light) => new Vector3(light.position.x, light.position.y - 0.55, light.position.z),
+  )
 
   scene.add(root)
-  return { moon, braziers, root }
+  return { moon, fill, braziers, brazierPositions, root }
 }
 
 function buildBraziers(): PointLight[] {
@@ -70,7 +73,7 @@ function buildBraziers(): PointLight[] {
     const angle = i * step + step / 2
     if (insideEntrance(angle)) continue
     const { x, z } = ringPosition(angle, LAYOUT.brazierRadius)
-    const light = new PointLight(PALETTE.fire.getHex(), 26, 13, 2)
+    const light = new PointLight(PALETTE.fire.getHex(), 15, 12, 2)
     light.name = `brazier-${i}`
     light.position.set(x, LAYOUT.brazierHeight + 0.55, z)
     light.castShadow = false
@@ -81,7 +84,7 @@ function buildBraziers(): PointLight[] {
   const { x, z } = ringPosition(LAYOUT.entranceAngle, LAYOUT.floorRadius + 4)
   const lateral = new Vector3(-z, 0, x).normalize().multiplyScalar(3.1)
   for (const side of [-1, 1]) {
-    const light = new PointLight(PALETTE.fire.getHex(), 20, 11, 2)
+    const light = new PointLight(PALETTE.fire.getHex(), 12, 10, 2)
     light.position.set(
       x + lateral.x * side,
       LAYOUT.entranceLandingHeight + 1.4,
@@ -103,6 +106,6 @@ export function flickerBraziers(lights: PointLight[], elapsed: number): void {
       Math.sin(elapsed * 11.3 + seed) * 0.5 +
       Math.sin(elapsed * 23.7 + seed * 1.7) * 0.3 +
       Math.sin(elapsed * 4.1 + seed * 0.6) * 0.2
-    light.intensity = 24 + flicker * 5.5
+    light.intensity = 14.5 + flicker * 3.4
   }
 }
