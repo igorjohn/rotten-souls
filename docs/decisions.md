@@ -290,3 +290,61 @@ pose por frame.
   do teto de 25 mil da seção 4.
 - **Arquivo de 2,12 MB** contra 1,82 MB antes, com os 46 clipes preservados e
   duas texturas de 1024 em WebP.
+
+## 2026-09-08 — Biblioteca de materiais dos personagens, seis peças
+
+Aço de placa, malha de ferro, couro, tecido, aço de lâmina e latão, cada uma
+com cor, normal, rugosidade e oclusão sem emenda, em
+`public/assets/textures/materiais`. Nomeadas pela peça e não pelo personagem,
+porque o chefe veste o mesmo aço e o mesmo tecido que o jogador.
+
+## 2026-09-08 — Só o albedo vem do modelo de imagem, o resto é derivado
+
+Normal e rugosidade saídos de um modelo de imagem são chute com cara de mapa.
+O `scripts/gen-textura.mjs` pede só o albedo ao `google/gemini-3.1-flash-image`
+pela OpenRouter e deriva o resto: altura pela luminância menos a versão muito
+borrada dela (tira a iluminação que a foto já traz), normal por Sobel na
+altura com vizinhança circular, rugosidade pela luminância invertida remapeada
+na faixa da peça, oclusão pela cavidade normalizada. Metalicidade é constante
+por peça e não vira mapa. Sete chamadas ao todo, US$ 0,0673 por imagem,
+US$ 0,47100 medido pela diferença de saldo, dentro do teto de US$ 1,50.
+
+## 2026-09-08 — Albedo de metal precisa de refletância física, não de foto
+
+O aço saiu do modelo com luminância linear de 0,04 no percentil 90, sete vezes
+mais escuro do que aço é. Em material metálico o albedo é a própria
+refletância especular, então na arena a esfera de teste ficou preta. Agora cada
+peça tem um alvo de refletância (aço gasto 0,55, lâmina 0,62, couro 0,09) e o
+ganho é aplicado em linear com joelho no topo. A âncora é o percentil 90 e não
+a média: na malha metade da imagem é vão preto entre os anéis, e a média puxada
+por buraco deixava o anel prateado.
+
+## 2026-09-08 — Emenda é medida antes de ser remendada
+
+A primeira versão rolava a imagem meia volta e misturava com o espelho nos dois
+eixos sempre. Na malha isso apareceu como faixa fantasma, porque numa trama
+regular a simetria da mistura é visível. Medindo o salto de cada eixo contra o
+salto típico do interior, quase sempre um dos dois já fechava sozinho: o couro
+e o tecido fecharam nos dois. Agora só o eixo que passa de 1,5 vez é remendado,
+e antes disso o script tenta cortar num número inteiro do passo do padrão, que
+fecha a volta sem borrar pixel nenhum. Aço de placa 2,09x → 1,31x, malha
+2,29x → 1,00x.
+
+## 2026-09-08 — Escala do ladrilho no nó de UV, não no `repeat` da textura
+
+O chefe tem duas vezes e meia a altura do jogador e a mesma textura no mesmo
+tamanho o deixaria com cara de brinquedo, então o ladrilho é parâmetro. Se ele
+morasse no `repeat` da textura seria preciso clonar as vinte e quatro imagens
+de 1024 por personagem, uma centena de megabytes de VRAM a mais sem um pixel de
+detalhe a mais. Em `src/entities/armor.ts` o ladrilho é um `uv().mul(escala)`
+compartilhado pelos quatro mapas do material, e as texturas ficam com um upload
+só.
+
+## 2026-09-08 — Ainda sem KTX2 nesta máquina, materiais entregues em WebP
+
+Nem `toktx` nem `basisu` estão instalados, o mesmo impedimento já registrado
+para as texturas de pedra. Os mapas saem em WebP direto do gerador: cor e
+normal em 1024, rugosidade e oclusão em 512, porque são sinais suaves e o
+relevo fino já vem do normal. A biblioteca inteira pesa 5,8 MB, contra 8,4 MB
+antes desse corte. O `optimize-assets.sh` não alcança esta pasta, porque o
+padrão dele é de um nível só (`textures/*/*.jpg`) e aqui há dois.

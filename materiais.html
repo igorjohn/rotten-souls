@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Rotten Souls — banca de materiais</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #05070c;
+        color: #8fa9c9;
+        font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+        overflow: hidden;
+      }
+      canvas {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+      }
+      #legenda {
+        position: fixed;
+        left: 14px;
+        bottom: 12px;
+        letter-spacing: 0.04em;
+        text-shadow: 0 1px 3px #000;
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <!--
+      Página só de desenvolvimento. Não entra no build: o Vite empacota apenas
+      index.html. Serve pra verificar cada material sozinho, sem subir a arena
+      inteira e sem atrapalhar quem estiver com o jogo aberto.
+    -->
+    <canvas id="preview"></canvas>
+    <div id="legenda">carregando</div>
+    <script type="module" src="/src/debug/materiais-preview.ts"></script>
+  </body>
+</html>
