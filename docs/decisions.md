@@ -135,3 +135,39 @@ Medi as durações dos clipes no glTF antes de mexer em qualquer coisa:
 - **Telegrafia por brasa.** A brasa do Vharen carrega durante a preparação do
   golpe e estoura no impacto. Sem um aviso que não seja a própria animação, um
   chefe grande com golpe largo vira sorte.
+
+## 2026-09-08, Vharen gerado: o que funcionou e o que não
+
+O modelo saiu bom: 56 580 triângulos, textura 2048 com PBR e emissivo já
+mapeado nas brasas, riggado com 24 ossos, e comprimido de 11,4 MB para 1,47 MB
+com Meshopt. Parado, ele é o cavaleiro do concept.
+
+O que não fecha é passar as animações da biblioteca CC0 pro esqueleto dele.
+Registro os becos sem saída pra não repetir:
+
+- **`SkeletonUtils.retarget` do Three não serve pra esses dois esqueletos.** Uma
+  única chamada estoura a malha de 1,95 para 17 595 metros. Ele escreve matrizes
+  derivadas do espaço de mundo de volta nos transformes locais, e a diferença
+  entre as duas hierarquias entra na conta. Testado com todas as combinações de
+  `preserveBoneMatrix`, `preserveBonePositions` e `useTargetMatrix`.
+- **Escrevi um retarget próprio, só de rotação,** guardando no início a rotação
+  entre os repousos e aplicando `alvo_mundo = fonte_mundo * offset` convertido
+  pro espaço local do pai. Isso estabilizou a escala e a pose parada ficou
+  correta, com o chefe de pé, na altura certa e plantado no chão.
+- **Mas a pose em movimento sai deformada.** Partes do corpo se separam e o
+  andar parece galope. As proporções e os eixos de repouso dos dois esqueletos
+  são diferentes demais pra correspondência osso a osso sem ajuste manual.
+
+Três coisas foram medidas no caminho e valem por si:
+
+- A cadeia da coluna do modelo gerado é `Hips -> Spine02 -> Spine01 -> Spine`,
+  ou seja o número não segue a ordem anatômica.
+- O nó da malha carrega uma escala própria de 0,01. Medir a altura sem passar
+  pela matriz de mundo da malha erra por um fator de cem.
+- A caixa da geometria ignora o esfolamento. A única medida confiável é
+  percorrer os vértices com `getVertexPosition` e aplicar a matriz de mundo.
+
+**Decisão:** o Vharen gerado fica atrás de `?vharen` e o padrão continua sendo o
+mannequim CC0, que anima certo. Fechar isso direito quer o retarget feito fora
+do jogo, com correção osso a osso, e entregue como GLB pronto. Sem isso, é
+trocar um chefe que funciona por um bonito que se desmonta andando.

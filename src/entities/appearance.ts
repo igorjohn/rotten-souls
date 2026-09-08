@@ -5,6 +5,8 @@ import {
   Mesh,
   MeshStandardNodeMaterial,
   Object3D,
+  Quaternion,
+  Vector3,
   type Material,
 } from 'three/webgpu'
 
@@ -97,13 +99,22 @@ export function buildGreatsword(scale = 1): Object3D {
 }
 
 /**
- * Prende a arma no osso da mão. O osso vem com a escala do esqueleto, então a
- * arma entra com a escala compensada, senão ela cresce junto com o chefe duas
- * vezes: uma pela raiz e outra pelo osso.
+ * Prende a arma no osso da mão, com a escala compensada.
+ *
+ * O osso herda a escala de toda a hierarquia acima dele, que no modelo gerado
+ * chega a duzentas e trinta vezes. Sem compensar, uma espada de escala 1 sai
+ * do tamanho de um prédio. `size` é o tamanho final desejado em metros de
+ * mundo, e a compensação é medida no próprio osso.
  */
-export function attachToHand(hand: Object3D, weapon: Object3D): void {
+export function attachToHand(hand: Object3D, weapon: Object3D, size = 1): void {
+  hand.updateWorldMatrix(true, false)
+  const boneScale = new Vector3()
+  hand.matrixWorld.decompose(new Vector3(), new Quaternion(), boneScale)
+  const compensation = boneScale.x > 0.0001 ? size / boneScale.x : size
+
   // Alinhamento do punho: o cabo aponta pro dedo, a lâmina sai pra fora.
   weapon.rotation.set(Math.PI * 0.52, 0, Math.PI * 0.06)
-  weapon.position.set(0, 0.04, 0.02)
+  weapon.position.set(0, 0.04 * compensation, 0.02 * compensation)
+  weapon.scale.multiplyScalar(compensation)
   hand.add(weapon)
 }

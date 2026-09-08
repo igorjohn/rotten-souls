@@ -17,14 +17,6 @@ import { LAYOUT } from './world/layout'
 const MODEL = 'assets/models/personagem-cc0.glb'
 /** Vharen definitivo, gerado a partir do concept e riggado. */
 const BOSS_MODEL = 'assets/models/vharen.glb'
-/**
- * Altura e base do modelo gerado, medidas nos vértices já deformados pelo
- * esqueleto. Não dá pra confiar na caixa da geometria aqui: ela ignora o
- * esfolamento e devolve 0,02, cem vezes menor que o tamanho real. E a origem
- * do modelo fica no centro do corpo, não nos pés, daí o deslocamento.
- */
-const BOSS_MODEL_HEIGHT = 1.998
-const BOSS_MODEL_BASE = -0.998
 /** Duração da apresentação do chefe, em segundos. */
 const CUTSCENE_SECONDS = 4.2
 const PHASE_ONE_EMBER = 2.6
@@ -97,9 +89,9 @@ export async function createGame(options: {
   try {
     if (!querVharenFinal) throw new Error('desligado')
     const bossGltf = await assets.model(BOSS_MODEL)
-    const bossScale = boss.height / BOSS_MODEL_HEIGHT
-    bossFinal = createRetargetedSkin(bossGltf, bossRig.root, { scale: bossScale })
-    bossFinal.root.position.y = -BOSS_MODEL_BASE * bossScale
+    bossFinal = createRetargetedSkin(bossGltf, bossRig.root, { height: boss.height })
+    // Montante na escala do chefe: duas vezes e meia o do jogador.
+    if (bossFinal.hand) attachToHand(bossFinal.hand, buildGreatsword(1), 2.5)
     bossRig.root.visible = false
     boss.object.add(bossFinal.root)
   } catch (error) {
