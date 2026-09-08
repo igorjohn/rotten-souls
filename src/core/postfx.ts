@@ -24,7 +24,7 @@ import type { Backend } from './renderer'
 /** Tudo que o painel de look dev mexe em tempo real. */
 function createControls() {
   return {
-    exposure: uniform(1.32),
+    exposure: uniform(1.55),
     bloomStrength: uniform(0.42),
     bloomRadius: uniform(0.85),
     bloomThreshold: uniform(0.62),
@@ -74,7 +74,7 @@ export function buildPostFx(
     aoPass.radius.value = 0.3
     aoPass.scale.value = 1
     aoPass.thickness.value = 1
-    aoPass.samples.value = 16
+    aoPass.samples.value = 10
     // Meia resolucao. A oclusao e de baixa frequencia, ninguem percebe.
     aoPass.resolutionScale = 0.5
   }

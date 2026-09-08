@@ -111,3 +111,51 @@ bloom e oclusão nunca recalculavam e o `time` do TSL ficava zerado, deixando
 chama e faísca imóveis. O `beginFrame` em `src/core/renderer.ts` agora avança
 esse relógio e zera os contadores uma vez por frame, o que também tornou a
 leitura de perf direta: no fim do frame os contadores já são o total do frame.
+
+## M3, arena de verdade
+
+Data: 2026-09-08
+Máquina: Mac M-series, navegador embutido do Claude Code
+Backend: WebGPU
+Resolução do buffer: 1752x985 com pixel ratio 1,5
+Cena: arena completa com kit modular texturizado, jogador dentro
+
+| Métrica | Valor | Limite | Situação |
+|---|---|---|---|
+| Frame time | 7,45 ms | 16 ms | 47% do orçamento |
+| Draw calls | 56 | 300 | 19% do orçamento |
+| Triângulos | 14 200 | 1 500 000 | 0,9% do orçamento |
+| Luzes com sombra | 1 (a lua) | 1 | no limite |
+| Escala de resolução | 1,00 | mínimo 0,62 | sem redução |
+
+### Download
+
+`pnpm build` gera 13 MB em disco, mas o que o navegador realmente baixa pra
+abrir o jogo é menor, porque parte dos pedaços nunca é pedida:
+
+| Parte | Tamanho na rede |
+|---|---|
+| Texturas, 5 materiais PBR com 4 mapas cada | 5,5 MB |
+| HDRI do céu noturno | 1,65 MB |
+| Rapier, comprimido | 1,08 MB |
+| Código do jogo, comprimido | 254 KB |
+| Three.js, comprimido | 70 KB |
+| **Total inicial** | **cerca de 8,6 MB** |
+
+Contra um teto de 60 MB e uma meta de 40 MB, sobra muita folga. Os pedaços do
+Draco e do Basis aparecem no `dist` mas não são baixados: o decodificador é
+apontado pra CDN e nenhum asset do projeto usa esses formatos ainda.
+
+### Como o frame caiu de 17,6 ms para 7,45 ms
+
+A primeira versão do M3 rodava a 17,58 ms **já com a resolução reduzida a 0,72**
+pelo governador automático, ou seja bem pior que o número cru sugere. O que
+resolveu, em ordem de impacto:
+
+1. **Muro externo deixou de lançar sombra.** São 36 blocos que saíram do passe
+   de sombra de uma vez. Nada fica atrás deles, então a sombra não pagava nada.
+2. **Mapa de sombra de 2048 para 1536 e câmera de sombra apertada** de ±34 para
+   ±27, que é o raio real da arena. Antes metade da resolução do mapa caía fora.
+3. **Oclusão de ambiente de 16 para 10 amostras**, mantida em meia resolução.
+4. **Anisotropia de 8 para 4**, que num chão em ângulo raso não muda o que se vê.
+5. **Escombro e parapeito sem sombra própria**, por serem pequenos e escuros.

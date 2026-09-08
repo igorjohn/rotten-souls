@@ -70,11 +70,20 @@ export class Physics {
     return controller
   }
 
-  /** Passo com acumulador, pra física não depender do fps. */
-  step(dt: number): void {
+  /**
+   * Passo com acumulador, pra física não depender do fps.
+   *
+   * `beforeStep` roda uma vez por passo fixo, com o timestep como delta. É onde
+   * o personagem calcula o próprio deslocamento. Isso não é detalhe: um corpo
+   * cinemático só anda quando o mundo dá um passo, então calcular o
+   * deslocamento por frame faz o jogo andar mais devagar quanto maior o fps,
+   * porque cada passo aplica só o último alvo agendado.
+   */
+  step(dt: number, beforeStep?: (fixed: number) => void): void {
     this.accumulator += dt
     let steps = 0
     while (this.accumulator >= this.world.timestep && steps < 4) {
+      beforeStep?.(this.world.timestep)
       this.world.step()
       this.accumulator -= this.world.timestep
       steps++

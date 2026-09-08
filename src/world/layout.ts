@@ -10,26 +10,53 @@ const stairSteps = 9
 const stairStepDepth = 0.95
 const entranceLandingHeight = 3.4
 const landingDepth = 7
-/** Onde o primeiro degrau encosta no piso da arena. */
-const stairStartRadius = floorRadius - 1.2
+/**
+ * Onde o primeiro degrau encosta no chao, ja do lado de fora do anel da arcada.
+ * Antes a escadaria comecava dentro do anel e enterrava a base do portao de
+ * nevoa nos degraus.
+ */
+const arcadeRadius = 22.4
+const arcadeDepth = 1.2
+const stairStartRadius = arcadeRadius + arcadeDepth + 0.4
 const stairEndRadius = stairStartRadius + stairSteps * stairStepDepth
 const landingCenterRadius = stairEndRadius + landingDepth / 2 - 0.5
 
 export const LAYOUT = {
   floorRadius,
-  /** Raio da face interna do muro do anel. */
-  wallRadius: 22.4,
-  wallHeight: 9,
-  wallThickness: 1.6,
-  wallSegments: 28,
 
-  pillarCount: 12,
-  pillarRadius: 18.2,
-  pillarHeight: 10,
-  pillarWidth: 1.5,
+  /** Arcada gotica: face interna, profundidade e altura do painel. */
+  arcadeRadius,
+  arcadeDepth,
+  arcadeHeight: 9.6,
+  /** Vaos ao redor do anel. Um deles vira o portao de nevoa. */
+  bayCount: 12,
+  bayOpening: 5.4,
+  baySpring: 3.3,
+  /** Quais vaos entram arruinados, contados a partir da entrada. */
+  ruinedBays: [2, 3, 7, 9] as readonly number[],
+
+  /** Contrafortes entre os vaos, mais altos que a arcada. */
+  pillarRadius: 22.9,
+  pillarHeight: 12.4,
+  pillarWidth: 1.7,
+  pillarDepth: 2.6,
+
+  /** Muro externo, atras da arcada. E ele que fecha a arena de verdade. */
+  outerRadius: 24.4,
+  outerHeight: 13.5,
+  outerThickness: 1.8,
+  outerSegments: 36,
+
+  /** Parapeito por cima da arcada. */
+  parapetHeight: 1.1,
+
+  /** Ate onde o piso vai. Passa por baixo de tudo, pra nao sobrar vao. */
+  groundRadius: 38,
+  /** Aneis concentricos gravados no piso, como na referencia. */
+  floorRings: [7.5, 12.5, 17.5],
 
   brazierCount: 12,
-  brazierRadius: 16.4,
+  brazierRadius: 19.6,
   brazierHeight: 1.35,
 
   /** Ângulo, em radianos, onde fica a entrada. 0 aponta pro +X. */

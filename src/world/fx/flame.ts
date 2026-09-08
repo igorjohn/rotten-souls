@@ -74,12 +74,12 @@ export interface BrazierFx {
  * origem do mundo. Por isso a posição de cada sprite vem de um atributo de
  * instância lido pelo `positionNode`, e não da matriz.
  */
-export function buildBrazierFx(positions: Vector3[]): BrazierFx {
+export function buildBrazierFx(positions: Vector3[], iron: MeshStandardNodeMaterial): BrazierFx {
   const root = new Group()
   root.name = 'brazier-fx'
   const controls = createFlameControls()
 
-  root.add(buildBowls(positions))
+  root.add(buildBowls(positions, iron))
   root.add(buildFlames(positions, controls))
   root.add(buildSparks(positions, controls))
 
@@ -87,15 +87,9 @@ export function buildBrazierFx(positions: Vector3[]): BrazierFx {
 }
 
 /** Bacia de ferro provisória. Vira peça do kit no M3. */
-function buildBowls(positions: Vector3[]): Object3D {
-  const material = new MeshStandardNodeMaterial({
-    color: new Color('#26221e'),
-    roughness: 0.82,
-    metalness: 0.55,
-  })
-
+function buildBowls(positions: Vector3[], material: MeshStandardNodeMaterial): Object3D {
   const group = new Group()
-  const bowls = new InstancedMesh(new CylinderGeometry(0.42, 0.26, 0.46, 10), material, positions.length)
+  const bowls = new InstancedMesh(new CylinderGeometry(0.42, 0.26, 0.46, 12), material, positions.length)
   const posts = new InstancedMesh(new CylinderGeometry(0.11, 0.13, 1.1, 8), material, positions.length)
   bowls.castShadow = true
   posts.castShadow = true

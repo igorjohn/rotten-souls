@@ -73,14 +73,28 @@ async function grab(ctx: CaptureContext, job: Pending): Promise<void> {
   }
 }
 
-/** No WebGPU a leitura já vem com a origem no canto superior esquerdo. */
+/**
+ * No WebGPU a leitura já vem com a origem no canto superior esquerdo, mas com
+ * as linhas alinhadas: a largura do buffer é arredondada pra cima até um
+ * múltiplo de 64 pixels, que é o alinhamento de 256 bytes que a API exige.
+ * Copiar o buffer inteiro de uma vez corta a imagem em diagonal ou estoura.
+ */
 function toPng(pixels: Uint8Array, width: number, height: number): string {
   const canvas = document.createElement('canvas')
   canvas.width = width
   canvas.height = height
   const context = canvas.getContext('2d')!
   const image = context.createImageData(width, height)
-  image.data.set(pixels)
+
+  const rowBytes = width * 4
+  const stride = Math.max(rowBytes, Math.round(pixels.length / height / 4) * 4)
+  for (let y = 0; y < height; y++) {
+    const start = y * stride
+    const available = Math.min(rowBytes, pixels.length - start)
+    if (available <= 0) break
+    image.data.set(pixels.subarray(start, start + available), y * rowBytes)
+  }
+
   context.putImageData(image, 0, 0)
   return canvas.toDataURL('image/png')
 }

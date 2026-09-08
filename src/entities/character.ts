@@ -13,8 +13,15 @@ export interface CharacterOptions {
 }
 
 const GRAVITY = -26
-/** Empurrao vertical minimo aplicado a cada frame no chao, pra nunca penetrar. */
-const GROUND_LIFT = 0.02
+/**
+ * Empurrao curto pra baixo a cada frame no chao, so pra manter contato. Nao usa
+ * gravidade cheia de proposito: com dt grande o passo para baixo ficava fundo
+ * demais, a capsula penetrava o colisor e o controlador do Rapier passava a
+ * zerar todo o movimento horizontal.
+ */
+const GROUND_STICK = 0.05
+/** Empurrao pra cima de um frame, usado so pra sair de uma penetracao. */
+const UNSTICK_LIFT = 0.04
 const UP = new Vector3(0, 1, 0)
 
 /**
@@ -31,6 +38,8 @@ export class Character {
   private readonly quaternion = new Quaternion()
 
   grounded = false
+  /** Verdadeiro quando o frame anterior nao conseguiu mover nada no plano. */
+  private stuck = false
   health: number
   stamina: number
   facing = 0
@@ -106,13 +115,11 @@ export class Character {
     this.velocity.z = horizontal.z
 
     if (this.grounded) {
-      // Nada de empurrar pra baixo quem ja esta no chao. O controlador do
-      // Rapier zera todo o movimento horizontal quando a capsula esta
-      // penetrando, e uma penetracao de um milimetro trava o personagem pra
-      // sempre. O empurrao pra cima garante a saida da penetracao e o
-      // snapToGround devolve o contato no mesmo frame.
       this.velocity.y = 0
-      this.desired.set(this.velocity.x * dt, GROUND_LIFT, this.velocity.z * dt)
+      // Se o frame anterior detectou a capsula presa, um unico frame de
+      // empurrao pra cima tira ela de dentro do colisor. Fora isso, contato.
+      const vertical = this.stuck ? UNSTICK_LIFT : -GROUND_STICK
+      this.desired.set(this.velocity.x * dt, vertical, this.velocity.z * dt)
     } else {
       this.velocity.y += GRAVITY * dt
       this.desired.copy(this.velocity).multiplyScalar(dt)
@@ -122,6 +129,13 @@ export class Character {
     const corrected = this.controller.computedMovement()
     this.grounded = this.controller.computedGrounded()
     if (this.grounded && this.velocity.y < 0) this.velocity.y = 0
+
+    // Diagnostico de capsula presa: pediu movimento no plano e nao veio nada.
+    // Nao vale pra quem esta encostado numa parede, porque ai o Rapier devolve
+    // o deslizamento tangente, que continua sendo movimento.
+    const wanted = Math.hypot(this.desired.x, this.desired.z)
+    const got = Math.hypot(corrected.x, corrected.z)
+    this.stuck = wanted > 1e-4 && got < wanted * 0.02
 
     const t = this.body.translation()
     this.body.setNextKinematicTranslation({

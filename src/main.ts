@@ -8,6 +8,7 @@ import { StatsPanel } from './debug/stats'
 import { exposeScreenshotHelper, flushScreenshot } from './debug/screenshot'
 import { Hud, setRendererBadge } from './ui/hud'
 import { buildArena } from './world/arena'
+import { loadMaterials } from './world/materials'
 import { buildLighting, flickerBraziers } from './world/lighting'
 import { buildFog } from './world/fx/fog'
 import { buildBrazierFx } from './world/fx/flame'
@@ -36,15 +37,18 @@ async function boot(): Promise<void> {
   ctx.scene.backgroundIntensity = 0.45
   ctx.scene.background = env
 
-  hud.setLoading(0.45, 'assentando a pedra')
+  hud.setLoading(0.4, 'talhando a pedra')
+  const materials = await loadMaterials(ctx.renderer)
+
+  hud.setLoading(0.6, 'assentando a arcada')
   const physics = await Physics.create()
-  const arena = buildArena(physics)
+  const arena = buildArena(physics, materials)
   ctx.scene.add(arena.root)
 
   hud.setLoading(0.7, 'acendendo os braseiros')
   const lighting = buildLighting(ctx.scene)
   const fogControls = buildFog(ctx.scene)
-  const brazierFx = buildBrazierFx(lighting.brazierPositions)
+  const brazierFx = buildBrazierFx(lighting.brazierPositions, materials.ferro)
   ctx.scene.add(brazierFx.root)
 
   hud.setLoading(0.9, 'afiando o montante')
@@ -83,8 +87,8 @@ async function boot(): Promise<void> {
   })
 
   loop.on('simulate', (dt) => {
-    player.update(dt)
-    physics.step(dt)
+    // O jogador simula dentro do passo fixo, junto com a física. Ver Physics.step.
+    physics.step(dt, (fixed) => player.update(fixed))
     player.postStep()
   })
 

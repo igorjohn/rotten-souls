@@ -34,19 +34,19 @@ export function buildLighting(scene: Scene): Lighting {
   const root = new Group()
   root.name = 'lighting'
 
-  const moon = new DirectionalLight(PALETTE.moon.getHex(), 0.78)
+  const moon = new DirectionalLight(PALETTE.moon.getHex(), 1.05)
   moon.name = 'moon'
   // De trás e de cima da arena, olhando pro centro.
   moon.position.set(-26, 34, -30)
   moon.target.position.set(0, 0, 4)
   moon.castShadow = true
-  moon.shadow.mapSize.set(2048, 2048)
+  moon.shadow.mapSize.set(1536, 1536)
   moon.shadow.camera.near = 6
   moon.shadow.camera.far = 110
-  moon.shadow.camera.left = -34
-  moon.shadow.camera.right = 34
-  moon.shadow.camera.top = 34
-  moon.shadow.camera.bottom = -34
+  moon.shadow.camera.left = -27
+  moon.shadow.camera.right = 27
+  moon.shadow.camera.top = 27
+  moon.shadow.camera.bottom = -27
   moon.shadow.bias = -0.0007
   moon.shadow.normalBias = 0.035
   moon.shadow.intensity = 0.92
