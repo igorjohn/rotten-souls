@@ -82,12 +82,15 @@ export function applySize(ctx: RenderContext): void {
   const forced = params.get('size')?.split('x').map(Number)
   const width = forced?.[0] || window.innerWidth || FALLBACK_SIZE.width
   const height = forced?.[1] || window.innerHeight || FALLBACK_SIZE.height
+  // Quando o viewport reporta zero, o CSS deixa o canvas em 0x0 e o WebGPU nao
+  // consegue criar a swapchain. Ai o tamanho tem que ir tambem pro estilo.
+  const needsExplicitStyle = !window.innerWidth || !window.innerHeight || Boolean(forced)
   const ratio = Math.min(window.devicePixelRatio || 1, MAX_PIXEL_RATIO) * ctx.resolutionScale
 
   ctx.camera.aspect = width / height
   ctx.camera.updateProjectionMatrix()
   ctx.renderer.setPixelRatio(ratio)
-  ctx.renderer.setSize(width, height, false)
+  ctx.renderer.setSize(width, height, needsExplicitStyle)
 }
 
 /**

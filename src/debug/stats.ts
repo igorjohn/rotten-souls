@@ -18,6 +18,8 @@ export class StatsPanel {
   private timer = 0
   private visible = false
   private last: Sample = { fps: 0, frameMs: 0, drawCalls: 0, triangles: 0 }
+  private previousDrawCalls = 0
+  private previousTriangles = 0
 
   constructor(private readonly ctx: RenderContext) {
     this.root.id = 'stats-panel'
@@ -61,11 +63,18 @@ export class StatsPanel {
     if (this.timer < 0.5) return
 
     const info = this.ctx.renderer.info
+    // info.autoReset esta desligado, entao os contadores sao cumulativos.
+    // O que interessa e a media por frame da janela.
+    const drawDelta = info.render.drawCalls - this.previousDrawCalls
+    const triangleDelta = info.render.triangles - this.previousTriangles
+    this.previousDrawCalls = info.render.drawCalls
+    this.previousTriangles = info.render.triangles
+
     this.last = {
       fps: Math.round(this.frames / this.timer),
       frameMs: Number((this.accumulatorMs / this.frames).toFixed(2)),
-      drawCalls: info.render.drawCalls,
-      triangles: info.render.triangles,
+      drawCalls: Math.round(drawDelta / this.frames),
+      triangles: Math.round(triangleDelta / this.frames),
     }
     this.frames = 0
     this.accumulatorMs = 0

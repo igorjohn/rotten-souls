@@ -14,3 +14,15 @@ Uma linha por decisão, com data e motivo. Inclui troca de asset e corte de esco
 - **Agendador híbrido no `Loop` e piso de resolução no `applySize`, só em desenvolvimento.** O painel de preview roda a página como documento oculto: `requestAnimationFrame` não dispara e o `Timer` do Three zera o delta. Sem isso não dá pra verificar nada visualmente, que é regra da seção 8.
 - **Endpoint `/__shot` no Vite, só em desenvolvimento.** Grava o canvas em `docs/screenshots` via `window.shot('nome')`. Todo marco fecha com imagem.
 - **Geração de imagem no Gemini bloqueada.** A chave autentica (HTTP 200 em `models.list`) e os modelos `gemini-3.1-flash-image` e `gemini-3-pro-image-preview` existem, mas toda chamada de geração volta 429 com `limit: 0` no free tier, em todos os modelos de imagem. Não é rate limit passageiro, é ausência de cota: exige faturamento ativo no projeto do Google Cloud. Concept art fica pendente. Não bloqueia M0 a M2, que são gray box e look dev.
+
+## 2026-09-08, M1
+
+- **Física com Rapier e `KinematicCharacterController`.** Cápsula de 1,85 m por 0,36 m de raio. Passo fixo de 1/60 com acumulador, pra combate previsível independente do fps.
+- **Nada de gravidade empurrando pra baixo quem já está no chão.** O controlador do Rapier zera todo o movimento horizontal quando a cápsula está penetrando o colisor, e um milímetro de penetração trava o personagem pra sempre. No chão o movimento vertical vira um empurrão de 2 cm pra cima e o `snapToGround` devolve o contato no mesmo frame. Custou uma sessão inteira de depuração; está registrado pra não voltar.
+- **Offset do controlador em 0,05 em vez de 0,02.** Margem maior contra o mesmo problema de penetração.
+- **O piso vai até embaixo do muro, não até o raio jogável.** Antes sobrava um anel vazio de 1,4 m entre a borda do piso e a face interna da parede, e dava pra cair por ele correndo de lado.
+- **Relógio de `MessageChannel` em desenvolvimento.** O Chrome estrangula `setTimeout` pra um por segundo em documento oculto, e o painel de preview trata a página assim. Com `setTimeout` o jogo rodava a 1 fps, o `dt` batia no teto de 1/20 e a física se comportava de um jeito que não acontece de verdade.
+- **`renderer.info.autoReset` desligado e média por delta.** O contador do WebGPU é preenchido depois do render assíncrono; zerar antes de desenhar lia frame incompleto e não zerar lia soma de frames.
+- **Medidas de movimento:** andar 2,6 m/s, correr 5,6 m/s, deslize com lock-on 2,9 e 4,9 m/s. Esquiva de 0,62 s com pico de 11,5 m/s, invencibilidade de 0,06 s a 0,42 s, custo de 25 de estamina. Estamina de 100, regeneração de 26 por segundo com atraso de 0,55 s, ou 1,2 s se zerou. Corrida drena 12 por segundo.
+- **Câmera de ombro com corte por raio.** Distância base 4,3 m, 5,4 m com lock-on. Um raio do pivô até a posição desejada corta a distância quando tem parede no meio, com mínimo de 1,5 m. Com lock-on o ombro abre pra 1,05 m, senão o jogador tapa o alvo.
+- **Alvo provisório de lock-on:** um cilindro no lugar de Vharen, pra desenvolver a câmera antes de existir chefe.

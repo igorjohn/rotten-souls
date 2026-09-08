@@ -23,14 +23,33 @@ export class Loop {
    * verificar nada visualmente, que e a regra da secao 8.
    */
   private readonly allowHiddenTicks = import.meta.env.DEV
+  /**
+   * O Chrome estrangula setTimeout pra um por segundo em documento oculto, o
+   * que deixaria o jogo a 1 fps no painel de preview. MessageChannel nao sofre
+   * esse estrangulamento e roda no fim da fila de tarefas, entao serve de
+   * relogio de desenvolvimento.
+   */
+  private readonly channel = typeof MessageChannel !== 'undefined' ? new MessageChannel() : null
+  private pendingTick: (() => void) | null = null
 
   constructor(private readonly maxDelta = 1 / 20) {
     for (const stage of ORDER) this.stages.set(stage, [])
+    if (this.channel) {
+      this.channel.port1.onmessage = () => {
+        const tick = this.pendingTick
+        this.pendingTick = null
+        tick?.()
+      }
+    }
   }
 
   private schedule(tick: () => void): void {
-    if (this.allowHiddenTicks && document.hidden) window.setTimeout(tick, 16)
-    else requestAnimationFrame(tick)
+    if (this.allowHiddenTicks && document.hidden && this.channel) {
+      this.pendingTick = tick
+      this.channel.port2.postMessage(0)
+    } else {
+      requestAnimationFrame(tick)
+    }
   }
 
   on(stage: Stage, fn: StageFn): void {
