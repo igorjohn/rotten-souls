@@ -1,8 +1,10 @@
 import {
   BoxGeometry,
   Color,
+  DoubleSide,
   Group,
   Mesh,
+  MeshStandardMaterial,
   MeshStandardNodeMaterial,
   Object3D,
   Quaternion,
@@ -11,25 +13,15 @@ import {
 } from 'three/webgpu'
 
 /**
- * Roupa provisória dos personagens. O mannequim CC0 vem com material chapado
- * laranja e roxo, que não pertence à paleta. Aqui ele ganha metal escuro e
- * couro, e o chefe ganha brasa nas juntas, que é a leitura do concept
- * escolhido: armadura carbonizada com fogo vivo por dentro.
+ * Materiais dos personagens.
+ *
+ * O jogador não passa mais por aqui: o mannequim CC0 foi desembrulhado e
+ * ganhou uma armadura assada em textura, com oclusão e desgaste de aresta
+ * (`scripts/blender/skin_player.py`), então o material vem do próprio arquivo.
+ *
+ * O que sobra é o chefe: `bossMaterials` só serve ao mannequim de reserva, e
+ * `dressVharen` veste o modelo definitivo.
  */
-
-export function playerMaterials(): [Material, Material] {
-  const armor = new MeshStandardNodeMaterial({
-    color: new Color('#54565b'),
-    roughness: 0.62,
-    metalness: 0.72,
-  })
-  const cloth = new MeshStandardNodeMaterial({
-    color: new Color('#2b2823'),
-    roughness: 0.92,
-    metalness: 0.05,
-  })
-  return [armor, cloth]
-}
 
 export function bossMaterials(): [Material, Material] {
   const iron = new MeshStandardNodeMaterial({
@@ -47,6 +39,45 @@ export function bossMaterials(): [Material, Material] {
     emissiveIntensity: 2.6,
   })
   return [iron, ember]
+}
+
+/**
+ * Veste o Vharen gerado com um material de nós próprio.
+ *
+ * O glTF do gerador chega com metalicidade 1 e rugosidade 1 chapadas, o que
+ * numa arena escura dá um bloco preto: metal totalmente rugoso não devolve
+ * nem o reflexo especular da lua nem o brilho quente dos braseiros. A cor e a
+ * brasa vêm dos dois mapas do próprio arquivo; o resto é ajuste de look.
+ *
+ * O material sai daqui de fora porque a telegrafia mexe na intensidade
+ * emissiva a cada frame, e para isso ele precisa ser um material de nós que o
+ * jogo criou, não o que o carregador montou sozinho.
+ */
+export function dressVharen(root: Object3D): MeshStandardNodeMaterial {
+  const material = new MeshStandardNodeMaterial({
+    color: new Color('#ffffff'),
+    roughness: 0.58,
+    metalness: 0.86,
+    emissive: new Color('#ffffff'),
+    emissiveIntensity: 2.6,
+    // A capa é uma casca de uma face só; sem isto ela some de metade dos
+    // ângulos.
+    side: DoubleSide,
+  })
+
+  root.traverse((child) => {
+    const mesh = child as Mesh
+    if (!mesh.isMesh) return
+    const origem = mesh.material as MeshStandardMaterial
+    if (origem?.map) material.map = origem.map
+    if (origem?.emissiveMap) material.emissiveMap = origem.emissiveMap
+    if (origem?.normalMap) material.normalMap = origem.normalMap
+    mesh.material = material
+    mesh.castShadow = true
+    mesh.receiveShadow = true
+  })
+
+  return material
 }
 
 /**

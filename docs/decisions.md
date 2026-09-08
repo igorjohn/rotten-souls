@@ -211,3 +211,82 @@ quadril, quando deviam estar os dois no zero e simétricos. Esqueleto e pesos
 estão sãos (24 ossos, 24 inversas, nenhum vértice sem peso), então o defeito
 está no conteúdo dos clipes, não na malha. O padrão volta a ser o mannequim,
 que se move certo, conforme a seção 9 do briefing.
+
+## 2026-09-08, retarget do Vharen assado no Blender
+
+O retarget saiu do jogo e virou script: `scripts/blender/retarget_vharen.py`,
+rodado com `blender --background`. O `vharen.glb` já chega com os doze clipes
+que o jogo pede, nos mesmos nomes da biblioteca CC0, e o chefe passou a ser um
+`Rig` comum. `src/entities/anim/retarget.ts` foi apagado, e com ele a cópia de
+pose por frame.
+
+- **Nem delta em mundo nem cópia de rotação local fecham,** porque as duas poses
+  de repouso são diferentes: a biblioteca está em T e o modelo gerado em A, com
+  53 graus de braço de diferença. O delta soma a diferença a cada frame e o
+  braço que na fonte desce 75 graus desce 128 no alvo, atravessando o corpo. A
+  cópia local erra pelo outro lado. O que fecha é alinhar o repouso primeiro e
+  só então aplicar a rotação da fonte, `R = pose_fonte * C`, com
+  `C = repouso_fonte^-1 * alinhamento * repouso_alvo`.
+- **A direção do osso não pode vir da cauda que o importador de glTF chuta.** No
+  glTF um osso é só um nó, sem comprimento nem cauda, e o importador do Blender
+  inventa os dois. No Vharen ele inventou mal: o dedo do pé saiu com 40 m e o
+  `Hips` apontando pra +X, ou seja pro lado. Alinhar esse +X com o quadril da
+  fonte, que aponta pra cima, gira a pelve cem graus, e como as coxas saem do
+  quadril por deslocamento lateral, o giro joga uma perna pra cima e a outra pra
+  baixo. Medido no jogo, com `Idle_Loop` parado: pé esquerdo a 0,911 m do chão e
+  direito a 0,339 m. A direção usada agora é da cabeça do osso pra cabeça do
+  filho que continua a cadeia, e só nas pontas cai na cauda. Mesmo clipe depois
+  da correção: 0,127 e 0,137, assimetria de 1 cm.
+- **Arco mínimo deixa o rolamento solto,** e é o rolamento que decide pra onde
+  vão os filhos com deslocamento lateral. O alinhamento virou quadro completo:
+  Y no osso, X perpendicular à frente do corpo, Z fechando. Quando o osso corre
+  quase paralelo à frente, como pé e dedo, a referência passa a ser o alto, e a
+  escolha é feita por par, não por osso, senão os dois quadros ficam
+  incomparáveis.
+- **Plantio de pé por desvio, não por altura absoluta.** As duas hierarquias têm
+  perna de proporção diferente, então transportar só a altura do quadril afunda
+  ou levanta o pé. A correção transporta o desvio do pé em relação ao próprio
+  repouso de cada esqueleto, o que zera no repouso e ainda deixa o rolamento e a
+  corrida saírem do chão. Base da malha no `Idle_Loop`: 5 mm abaixo de zero.
+- **Verificação numérica antes de exportar** e folhas de contato renderizadas no
+  próprio Blender a partir do GLB exportado, não do estado em memória, pra pegar
+  erro de exportação junto: `docs/screenshots/vharen-0*.png`.
+- **O Vharen definitivo é o padrão.** `?mannequim` na URL devolve o provisório.
+  Números em jogo: malha de 4,56 a 4,60 m contra 4,62 m de repouso, base entre
+  0,045 e 0,056 m no piso da arena, assimetria de dedo do pé de 9 mm parado e
+  2 cm em golpe. 56 580 triângulos, arquivo de 1,69 MB com os doze clipes.
+  Frame entre 8,5 e 18 ms, 63 a 78 chamadas de desenho, 100 a 158 mil triângulos
+  por frame.
+
+## 2026-09-08, pele do jogador
+
+- **O mannequim CC0 não tem UV utilizável.** Duas camadas, `UVMap` inteira em
+  (0,0) e `UVMap.001` cobrindo 1,8% do quadrado, porque o material original é
+  cor chapada por slot e não precisa de mapa. Sem correspondência entre imagem e
+  corpo, textura pintada por fora cai em qualquer lugar, então **não dava pra
+  usar imagem gerada por IA** e nenhum crédito foi gasto. O caminho foi o
+  inverso: desembrulhar no Blender e assar (`scripts/blender/skin_player.py`).
+- **Smart project sozinho rende 15% do quadrado.** A margem por ilha do próprio
+  smart project come o espaço quando são muitas; desembrulhar com margem zero e
+  reempacotar depois com `average_islands_scale` e `pack_islands` a 0,004 leva
+  a 40,3%.
+- **Armadura procedural assada em `EMIT`,** que é o único modo que assa
+  exatamente o que os nós calculam sem luz da cena entrar junto. Três camadas:
+  manchas de oxidação por ruído em espaço de objeto, desgaste nas arestas
+  convexas pela `pointiness` da geometria quebrada com ruído fino, e oclusão de
+  ambiente pra cavar as juntas. Sai mapa de cor e mapa de rugosidade e
+  metalicidade no formato do glTF, verde e azul, num material só.
+- **Metalicidade 0,45, não 0,92.** A primeira assadura foi fisicamente correta e
+  visualmente inútil: metal puro numa arena sem ambiente não tem o que refletir
+  e o jogador virou recorte preto no chão molhado. Metade da metalicidade e piso
+  de oclusão em 0,34 devolvem o termo difuso, que é o único que sobrevive nesse
+  nível de luz.
+- **Capa e ombreiras como geometria,** costuradas na mesma malha com pele nos
+  mesmos ossos: a capa pesada na cadeia da coluna por altura, as ombreiras 100%
+  no braço. Textura resolve cor, não silhueta, e de longe no escuro o mannequim
+  continuava sendo boneco. É o "armadura CC0 retexturizada e capa" da seção 5.4.
+  **Saia ficou de fora de propósito:** a perna sobe muito em corrida e rolamento
+  e atravessaria por fora. 8 547 para 9 032 vértices, 14 219 triângulos, dentro
+  do teto de 25 mil da seção 4.
+- **Arquivo de 2,12 MB** contra 1,82 MB antes, com os 46 clipes preservados e
+  duas texturas de 1024 em WebP.

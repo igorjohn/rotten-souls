@@ -6,9 +6,13 @@ import type { Hud } from './ui/hud'
 import type { Input } from './core/input'
 import { Player } from './entities/player'
 import { Boss, BOSS_NAME } from './entities/boss'
-import { createRig } from './entities/anim/rig'
-import { createRetargetedSkin, type RetargetedSkin } from './entities/anim/retarget'
-import { attachToHand, bossMaterials, buildGreatsword, playerMaterials } from './entities/appearance'
+import { createRig, type Rig } from './entities/anim/rig'
+import {
+  attachToHand,
+  bossMaterials,
+  buildGreatsword,
+  dressVharen,
+} from './entities/appearance'
 import type { MeshStandardNodeMaterial } from 'three/webgpu'
 import type { CameraRig } from './entities/camera-rig'
 import type { Arena } from './world/arena'
@@ -25,6 +29,12 @@ const PHASE_TWO_EMBER = 5.4
 const TELEGRAPH_EMBER = 5
 /** Altura do modelo CC0 em metros, medida no glTF. */
 const MODEL_HEIGHT = 1.829
+/**
+ * Altura do Vharen definitivo na pose de repouso, medida no Blender. O modelo
+ * já sai do gerador na escala do chefe, então a razão dá 1 e a escala existe
+ * só pra não amarrar o arquivo à constante do `Boss`.
+ */
+const VHAREN_HEIGHT = 4.62
 
 export type Phase = 'exploring' | 'fighting' | 'dead' | 'victory'
 
@@ -60,48 +70,48 @@ export async function createGame(options: {
   const gltf = await assets.model(MODEL)
 
   const player = new Player(physics, input, cameraRig)
-  const playerRig = createRig(gltf, {
-    scale: player.height / MODEL_HEIGHT,
-    materials: playerMaterials(),
-  })
+  // Sem substituir material: o mannequim agora chega com a armadura assada,
+  // com oclusão e desgaste de aresta no mapa (`scripts/blender/skin_player.py`).
+  const playerRig = createRig(gltf, { scale: player.height / MODEL_HEIGHT })
   player.attachRig(playerRig)
   if (playerRig.hand) attachToHand(playerRig.hand, buildGreatsword(1))
 
   const boss = new Boss(physics)
-  const bossSkin = bossMaterials()
-  const bossRig = createRig(gltf, {
-    scale: boss.height / MODEL_HEIGHT,
-    materials: bossSkin,
-  })
-  const bossEmber = bossSkin[1] as MeshStandardNodeMaterial
-  boss.attachRig(bossRig)
 
-  // Vharen definitivo. O esqueleto CC0 continua dirigindo a animação, agora
-  // invisível, e a pose é copiada pro modelo gerado a cada frame.
+  // Vharen definitivo, com as animações da biblioteca CC0 já assadas no
+  // esqueleto dele pelo Blender (`scripts/blender/retarget_vharen.py`). Não há
+  // mais retarget em tempo de execução: o arquivo já chega com os doze clipes
+  // que o jogo pede, nos mesmos nomes, então ele é um rig como qualquer outro.
   //
-  // Ainda atrás de `?vharen` na URL: o retarget entre o esqueleto Rigify da
-  // biblioteca e o humanoide do modelo gerado está deformando a malha, e um
-  // chefe quebrado é pior que um mannequim que funciona. Com o parâmetro
-  // desligado o jogo usa o provisório, que é o comportamento normal.
-  let bossFinal: RetargetedSkin | null = null
-  const querVharenFinal = new URLSearchParams(window.location.search).has('vharen')
-  if (!querVharenFinal && bossRig.hand) {
-    attachToHand(bossRig.hand, buildGreatsword(1))
-  }
+  // A primeira assadura de fato abria a perna: pé esquerdo a 0,91 m do chão e
+  // direito a 0,34 m, com o `Idle_Loop` parado. A causa era o alinhamento de
+  // repouso usar a direção que o importador de glTF inventou pro osso `Hips`,
+  // que aponta pro lado. Corrigido no script com direção anatômica, o mesmo
+  // clipe agora mede 0,127 e 0,137, assimetria de 1 cm, e a malha fica com
+  // 4,56 m de altura contra 4,62 m de repouso. Por isso ele voltou a ser o
+  // padrão. `?mannequim` na URL devolve o provisório, que serve de comparação.
+  let bossRig: Rig
+  let bossEmber: MeshStandardNodeMaterial
+  const querMannequim = new URLSearchParams(window.location.search).has('mannequim')
   try {
-    if (!querVharenFinal) throw new Error('desligado')
+    if (querMannequim) throw new Error('mannequim provisório pedido na URL')
     const bossGltf = await assets.model(BOSS_MODEL)
-    bossFinal = createRetargetedSkin(bossGltf, bossRig.root, { height: boss.height })
+    bossRig = createRig(bossGltf, { scale: boss.height / VHAREN_HEIGHT })
+    bossEmber = dressVharen(bossRig.root)
+    // O modelo gerado usa nomenclatura humanoide, não a do Rigify.
+    const bossHand = bossRig.root.getObjectByName('RightHand')
     // Montante na escala do chefe: duas vezes e meia o do jogador.
-    if (bossFinal.hand) attachToHand(bossFinal.hand, buildGreatsword(1), 2.5)
-    bossRig.root.visible = false
-    boss.object.add(bossFinal.root)
+    if (bossHand) attachToHand(bossHand, buildGreatsword(1), 2.5)
   } catch (error) {
-    if (querVharenFinal) {
-      console.warn('[game] modelo final do Vharen não carregou, usando o provisório', error)
-      if (bossRig.hand) attachToHand(bossRig.hand, buildGreatsword(1))
+    if (!querMannequim) {
+      console.warn('[game] Vharen definitivo não carregou, usando o mannequim', error)
     }
+    const bossSkin = bossMaterials()
+    bossRig = createRig(gltf, { scale: boss.height / MODEL_HEIGHT, materials: bossSkin })
+    bossEmber = bossSkin[1] as MeshStandardNodeMaterial
+    if (bossRig.hand) attachToHand(bossRig.hand, buildGreatsword(1))
   }
+  boss.attachRig(bossRig)
 
   player.enemy = boss
 
@@ -269,8 +279,6 @@ export async function createGame(options: {
     update(dt) {
       player.updateAnimation(dt)
       boss.updateAnimation(dt)
-      // Depois do mixer, senão a pose copiada é a do frame anterior.
-      bossFinal?.update()
 
       // Telegrafia: a brasa carrega junto com a preparação do golpe e estoura
       // no impacto. É o aviso que a animação sozinha não dá.

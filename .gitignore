@@ -10,3 +10,7 @@ assets-src/**/*.glb
 assets-src/**/*.wav
 *.log
 .vite
+
+# Fonte bruta de modelo: 22 MB de .blend e intermediarios do retarget.
+# Regeravel por scripts/blender/retarget_vharen.py, entao fica fora do repo.
+assets-src/models/
