@@ -32,6 +32,8 @@ export interface Game {
   player: Player
   boss: Boss
   phase: Phase
+  /** Multiplicador de tempo pedido pelo jogo. É por aqui que o hitstop entra. */
+  readonly timeScale: number
   /** Passo fixo, junto com a física. */
   fixedUpdate(dt: number): void
   /** Uma vez por frame. */
@@ -109,16 +111,38 @@ export async function createGame(options: {
     victoryTimer: 0,
     /** Enquanto positivo, o jogador não controla nada. */
     cutscene: 0,
+    /** Instante em que o congelamento do impacto acaba, em tempo real. */
+    hitstopUntil: 0,
+  }
+
+  /**
+   * Hitstop. No instante do impacto o jogo quase para por alguns quadros.
+   *
+   * É o truque mais barato e mais eficaz pra um golpe parecer que acertou
+   * alguma coisa: sem ele a lâmina atravessa o corpo sem resistência e o
+   * acerto some. O golpe pesado congela mais que o leve, e apanhar congela
+   * mais ainda, porque é a informação mais importante da tela.
+   */
+  function freeze(seconds: number): void {
+    // Marca um instante no relógio real, não um contador em segundos de jogo:
+    // durante o congelamento o tempo de jogo anda a um vinte avos, então um
+    // contador descontado com o delta escalado duraria vinte vezes mais.
+    state.hitstopUntil = Math.max(state.hitstopUntil, performance.now() + seconds * 1000)
   }
   const gatePosition = new Vector3(arena.gate.position.x, 0, arena.gate.position.z)
 
   // Som. Tudo sintetizado, nenhum arquivo de áudio no bundle.
   player.onSwing = (heavy) => audio.swing(heavy)
   player.onStep = (weight) => audio.footstep(weight)
-  player.onHitLanded = () => audio.impact(0.75)
+  player.onHitLanded = () => {
+    audio.impact(0.75)
+    freeze(player.state === 'attack' ? 0.075 : 0.06)
+    cameraRig.punch(0.35)
+  }
   player.onHurt = () => {
     audio.impact(1)
-    cameraRig.punch(0.5)
+    cameraRig.punch(0.7)
+    freeze(0.11)
   }
   boss.onAttackStart = () => audio.swing(true)
   boss.onHitLanded = () => cameraRig.punch(0.8)
@@ -220,6 +244,12 @@ export async function createGame(options: {
     boss,
     get phase() {
       return state.phase
+    },
+
+    get timeScale() {
+      // Não zera de vez: uma parada absoluta trava o passo fixo da física e
+      // deixa o quadro seguinte com um salto. Um vinte avos já lê como pausa.
+      return performance.now() < state.hitstopUntil ? 0.05 : 1
     },
 
     fixedUpdate(dt) {

@@ -257,9 +257,47 @@ canvas#game {
   display: grid;
   place-items: center;
   background:
-    radial-gradient(ellipse at 50% 40%, rgba(40, 24, 10, 0.35), transparent 62%),
+    radial-gradient(ellipse at 50% 38%, rgba(40, 24, 10, 0.28), transparent 64%),
     var(--void);
   transition: opacity 800ms ease;
+}
+
+/* A arte de capa entra por baixo como atmosfera, não como tipografia: ela traz
+   o mesmo nome escrito, então é ampliada e ancorada embaixo pra mostrar só as
+   silhuetas de castelo e a névoa, e desfocada pra não competir com a logo. */
+#start-gate::before {
+  content: "";
+  position: absolute;
+  inset: -40px;
+  background: url("/assets/ui/arte.webp") 50% 92% / 210% no-repeat;
+  opacity: 0.5;
+  filter: saturate(0.7) brightness(0.62) blur(3px);
+}
+
+#start-gate::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 45%, transparent 20%, rgba(5, 7, 12, 0.86) 78%);
+}
+
+#start-gate .start-inner,
+#loading .loading-inner {
+  position: relative;
+  z-index: 1;
+}
+
+.logo {
+  display: block;
+  width: min(62vw, 430px);
+  height: auto;
+  margin: 0 auto 18px;
+  filter: drop-shadow(0 0 46px rgba(139, 30, 30, 0.35));
+}
+
+#loading .logo {
+  width: min(52vw, 340px);
+  opacity: 0.9;
 }
 
 #loading.gone,
@@ -319,8 +357,9 @@ canvas#game {
 .start-sub {
   color: #8d8474;
   font-style: italic;
-  font-size: 17px;
-  margin: -12px 0 30px;
+  font-size: 16px;
+  letter-spacing: 0.04em;
+  margin: 0 0 30px;
 }
 
 #start-button {

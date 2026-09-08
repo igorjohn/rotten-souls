@@ -42,6 +42,9 @@ const STAMINA_REGEN = 26
 const REGEN_DELAY = 0.55
 const SPENT_DELAY = 1.2
 
+/** Quantos leves seguidos cabem numa sequência antes de precisar respirar. */
+const MAX_CHAIN = 3
+
 const HIT_STAGGER = 0.42
 /** Respiro depois de apanhar, pra emenda de golpes não matar em cadeia. */
 const HIT_IFRAMES = 0.55
@@ -87,6 +90,8 @@ export class Player implements Damageable {
   private attack: AttackRun | null = null
   private attackTime = 0
   private recovery = 0
+  /** Quantos golpes leves seguidos já saíram nesta sequência. */
+  private chain = 0
   private stagger = 0
   private iframeTimer = 0
   /** Distância percorrida desde o último passo, pro som seguir a passada. */
@@ -165,6 +170,7 @@ export class Player implements Damageable {
     this.state = 'idle'
     this.dodgeTime = 0
     this.attack = null
+    this.chain = 0
     this.recovery = 0
     this.stagger = 0
     this.iframeTimer = 0
@@ -306,10 +312,12 @@ export class Player implements Damageable {
     }
     if (this.recovery <= 0) {
       if (this.input.consume('light') && this.spend(PLAYER_ATTACKS.light.stamina)) {
+        this.chain = 1
         this.startAttack(PLAYER_ATTACKS.light)
         return
       }
       if (this.input.consume('heavy') && this.spend(PLAYER_ATTACKS.heavy.stamina)) {
+        this.chain = 0
         this.startAttack(PLAYER_ATTACKS.heavy)
         return
       }
@@ -377,6 +385,7 @@ export class Player implements Damageable {
   }
 
   private startDodge(): void {
+    this.chain = 0
     this.state = 'dodge'
     this.dodgeTime = 0
     if (this.wish.lengthSq() > 0.0001) {
@@ -460,9 +469,33 @@ export class Player implements Damageable {
       }
     }
 
+    // Depois da janela de dano o golpe pode ser cancelado, que é o que dá
+    // controle: emenda outro leve, ou rola pra fora. Antes disso, o golpe é
+    // um compromisso, como tem que ser.
+    const cancelable = progress > run.def.windowEnd
+    if (cancelable) {
+      if (this.input.consume('dodge') && this.character.grounded && this.spend(DODGE_COST)) {
+        this.attack = null
+        this.chain = 0
+        this.startDodge()
+        return
+      }
+      if (
+        this.chain < MAX_CHAIN &&
+        this.input.consume('light') &&
+        this.spend(PLAYER_ATTACKS.light.stamina)
+      ) {
+        this.chain++
+        this.attack = null
+        this.startAttack(PLAYER_ATTACKS.light)
+        return
+      }
+    }
+
     if (progress >= 0.999) {
       this.attack = null
       this.recovery = run.def.recovery
+      this.chain = 0
       this.state = 'idle'
       this.rig?.play(CLIPS.idle, { fade: 0.16 })
     }

@@ -1,9 +1,9 @@
 {
-  "name": "app-souls-web",
+  "name": "rotten-souls",
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Vertical slice de Souls-like na web com Three.js e WebGPU",
+  "description": "Vertical slice de um Souls-like em WebGPU, com arena gerada por código e som sintetizado",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

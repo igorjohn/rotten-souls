@@ -113,6 +113,8 @@ async function boot(): Promise<void> {
     flickerBraziers(lighting.braziers, elapsed)
     game.update(dt)
     hud.update(dt)
+    // O jogo pede a escala, o loop aplica. É assim que o hitstop chega na física.
+    loop.timeScale = game.timeScale
   })
 
   loop.on('camera', (dt) => {

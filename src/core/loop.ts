@@ -32,6 +32,13 @@ export class Loop {
   private readonly channel = typeof MessageChannel !== 'undefined' ? new MessageChannel() : null
   private pendingTick: (() => void) | null = null
 
+  /**
+   * Multiplicador do tempo do jogo. Serve pro hitstop: no instante do impacto
+   * o jogo quase congela por uns quadros, que é o que faz um golpe parecer que
+   * acertou alguma coisa em vez de atravessar o ar.
+   */
+  timeScale = 1
+
   constructor(private readonly maxDelta = 1 / 20) {
     for (const stage of ORDER) this.stages.set(stage, [])
     if (this.channel) {
@@ -71,7 +78,7 @@ export class Loop {
       if (!this.running) return
       this.frameStart = performance.now()
       this.timer.update()
-      const dt = Math.min(this.timer.getDelta(), this.maxDelta)
+      const dt = Math.min(this.timer.getDelta(), this.maxDelta) * this.timeScale
       const elapsed = this.timer.getElapsed()
       for (const stage of ORDER) {
         const fns = this.stages.get(stage)!
