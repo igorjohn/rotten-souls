@@ -18,8 +18,6 @@ import { buildFogGate, type FogGate } from './kit/fog-gate'
 
 export interface Arena {
   root: Group
-  /** Alvo estático do lock-on enquanto o chefe não existe. */
-  dummy: Object3D
   gate: FogGate
 }
 
@@ -47,10 +45,7 @@ export function buildArena(physics: Physics, materials: Materials): Arena {
   const gate = buildFogGate(materials)
   root.add(gate.root)
 
-  const dummy = buildDummy(physics, materials)
-  root.add(dummy)
-
-  return { root, dummy, gate }
+  return { root, gate }
 }
 
 /** Piso que vai até embaixo de tudo, pra não sobrar vão onde dá pra cair. */
@@ -482,19 +477,6 @@ function buildRubble(physics: Physics, materials: Materials): Object3D {
   })
 
   return group
-}
-
-/** Cilindro alto no lugar do chefe, só pra ter em quem travar a mira. */
-function buildDummy(physics: Physics, materials: Materials): Object3D {
-  const geometry = new CylinderGeometry(0.9, 1.1, 4.2, 14)
-  scaleUvFromWorld(geometry, 1.1, uvScale('rocha'))
-  const mesh = new Mesh(geometry, materials.rocha)
-  mesh.name = 'dummy'
-  mesh.position.set(LAYOUT.bossSpawn.x, 2.1, LAYOUT.bossSpawn.z)
-  mesh.castShadow = true
-  mesh.receiveShadow = true
-  physics.addStaticCylinder(mesh.position, 1.1, 2.1)
-  return mesh
 }
 
 /**

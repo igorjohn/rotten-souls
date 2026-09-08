@@ -14,8 +14,8 @@ import { buildFog } from './world/fx/fog'
 import { buildBrazierFx } from './world/fx/flame'
 import { buildPostFx } from './core/postfx'
 import { LookDevGui } from './debug/gui'
-import { Player } from './entities/player'
 import { CameraRig } from './entities/camera-rig'
+import { createGame } from './game'
 
 const HDRI = 'assets/hdri/moonlit_golf_1k.hdr'
 
@@ -51,11 +51,20 @@ async function boot(): Promise<void> {
   const brazierFx = buildBrazierFx(lighting.brazierPositions, materials.ferro)
   ctx.scene.add(brazierFx.root)
 
-  hud.setLoading(0.9, 'afiando o montante')
+  hud.setLoading(0.86, 'afiando o montante')
   const input = new Input(canvas)
   const rig = new CameraRig(ctx.camera, physics)
-  const player = new Player(physics, input, rig)
-  ctx.scene.add(player.object)
+  const game = await createGame({
+    assets,
+    physics,
+    input,
+    hud,
+    arena,
+    camera: ctx.camera,
+    cameraRig: rig,
+  })
+  const player = game.player
+  ctx.scene.add(player.object, game.boss.object)
 
   hud.setLoading(0.96, 'compondo a imagem')
   const postfx = buildPostFx(ctx.renderer, ctx.scene, ctx.camera, ctx.backend)
@@ -70,7 +79,10 @@ async function boot(): Promise<void> {
 
   if (import.meta.env.DEV) {
     exposeScreenshotHelper()
-    ;(window as unknown as { game: unknown }).game = { ctx, input, player, rig, arena, lighting, physics, postfx, fogControls, brazierFx }
+    ;(window as unknown as { game: unknown }).game = {
+      ctx, input, player, boss: game.boss, jogo: game, rig, arena, lighting,
+      physics, postfx, fogControls, brazierFx,
+    }
     ;(window as unknown as { perf: () => unknown }).perf = () => ({
       ...stats.snapshot,
       backend: ctx.backend,
@@ -83,19 +95,20 @@ async function boot(): Promise<void> {
 
   loop.on('input', (dt) => {
     input.update(dt)
-    if (input.consume('lockOn')) player.toggleLock([arena.dummy])
+    if (input.consume('lockOn')) player.toggleLock([game.boss.object])
   })
 
   loop.on('simulate', (dt) => {
-    // O jogador simula dentro do passo fixo, junto com a física. Ver Physics.step.
-    physics.step(dt, (fixed) => player.update(fixed))
+    // Jogador e chefe simulam dentro do passo fixo, junto com a física.
+    // Ver Physics.step: corpo cinemático só anda quando o mundo dá um passo.
+    physics.step(dt, (fixed) => game.fixedUpdate(fixed))
     player.postStep()
+    game.boss.postStep()
   })
 
   loop.on('animate', (dt, elapsed) => {
     flickerBraziers(lighting.braziers, elapsed)
-    hud.setHealth(player.healthRatio)
-    hud.setStamina(player.staminaRatio, player.exhausted)
+    game.update(dt)
     hud.update(dt)
   })
 

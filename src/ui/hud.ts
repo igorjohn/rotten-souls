@@ -3,6 +3,17 @@
  * Cada barra tem duas camadas: b e o valor atual, i e o rastro do dano.
  */
 
+/**
+ * Força o navegador a aplicar o estado atual antes da próxima mudança de classe.
+ * Sem isso, tirar `display:none` e adicionar a classe de transição no mesmo
+ * quadro faz a transição ser pulada. O caminho comum pra isso é esperar um
+ * `requestAnimationFrame`, mas ele não dispara com o documento oculto, e aí a
+ * tela de morte e a de vitória simplesmente não apareciam.
+ */
+function reflow(element: HTMLElement): void {
+  void element.offsetWidth
+}
+
 function el<T extends HTMLElement>(selector: string): T {
   const node = document.querySelector<T>(selector)
   if (!node) throw new Error(`elemento ausente no HTML: ${selector}`)
@@ -34,10 +45,9 @@ class Bar {
     this.value = next
     this.fill.style.transform = `scaleX(${next})`
     if (next < previous) {
-      // O rastro so anda depois, pela transicao com delay do CSS.
-      requestAnimationFrame(() => {
-        this.trail.style.transform = `scaleX(${next})`
-      })
+      // O rastro só anda depois, pela transição com atraso do CSS.
+      reflow(this.root)
+      this.trail.style.transform = `scaleX(${next})`
     } else {
       this.trail.style.transform = `scaleX(${next})`
     }
@@ -127,7 +137,8 @@ export class Hud {
 
   showDeath(): void {
     this.death.classList.remove('hidden')
-    requestAnimationFrame(() => this.death.classList.add('showing'))
+    reflow(this.death)
+    this.death.classList.add('showing')
   }
 
   hideDeath(): void {
@@ -137,12 +148,14 @@ export class Hud {
 
   showVictory(): void {
     this.victory.classList.remove('hidden')
-    requestAnimationFrame(() => this.victory.classList.add('showing'))
+    reflow(this.victory)
+    this.victory.classList.add('showing')
   }
 
   showAreaTitle(seconds = 4): void {
     this.areaTitle.classList.remove('hidden')
-    requestAnimationFrame(() => this.areaTitle.classList.add('showing'))
+    reflow(this.areaTitle)
+    this.areaTitle.classList.add('showing')
     window.setTimeout(() => {
       this.areaTitle.classList.remove('showing')
       window.setTimeout(() => this.areaTitle.classList.add('hidden'), 1300)

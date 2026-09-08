@@ -159,3 +159,29 @@ resolveu, em ordem de impacto:
 3. **Oclusão de ambiente de 16 para 10 amostras**, mantida em meia resolução.
 4. **Anisotropia de 8 para 4**, que num chão em ângulo raso não muda o que se vê.
 5. **Escombro e parapeito sem sombra própria**, por serem pequenos e escuros.
+
+## M4, combate e chefe
+
+Data: 2026-09-08
+Máquina: Mac M-series, navegador embutido do Claude Code
+Backend: WebGPU
+Cena: arena completa, jogador e Vharen animados, lock-on ativo, chefe atacando
+
+| Métrica | Valor | Limite | Situação |
+|---|---|---|---|
+| Frame time, média de 400 quadros | 5,09 ms | 16 ms | 32% do orçamento |
+| Frame time, pior quadro | 5,19 ms | 16 ms | sem picos |
+| Draw calls | 88 | 300 | 29% do orçamento |
+| Triângulos | 71 566 | 1 500 000 | 4,8% do orçamento |
+| Luzes com sombra | 1 (a lua) | 1 | no limite |
+| Escala de resolução | 1,00 | mínimo 0,62 | sem redução |
+
+Os dois personagens somam 57 mil triângulos e 32 draw calls a mais que o M3,
+porque cada um é uma malha com pele desenhada duas vezes, uma pro passe de
+sombra e outra pro passe de cena. A variação entre o pior e o melhor quadro é de
+0,10 ms, ou seja o custo de animação e de IA não aparece no gráfico.
+
+### Download
+
+O personagem CC0 acrescenta 1,82 MB, já com Meshopt. Total inicial passa de
+8,6 MB para **10,4 MB**, contra teto de 60 MB e meta de 40 MB.

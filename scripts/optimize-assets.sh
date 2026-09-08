@@ -24,7 +24,11 @@ fi
 
 antes=$(du -sk public/assets | cut -f1)
 
+# Marca cada textura ja comprimida. Recomprimir JPEG em cima de JPEG perde
+# qualidade a cada passada, e o script tem que poder rodar quantas vezes quiser.
 for arquivo in public/assets/textures/*/*.jpg; do
+  marca="$(dirname "$arquivo")/.$(basename "$arquivo").ok"
+  [ -e "$marca" ] && continue
   nome=$(basename "$arquivo" .jpg)
   case "$nome" in
     normal) q=$QUALIDADE_NORMAL ;;
@@ -32,15 +36,23 @@ for arquivo in public/assets/textures/*/*.jpg; do
     *)      q=$QUALIDADE_DADOS ;;
   esac
   sips -s format jpeg -s formatOptions "$q" "$arquivo" --out "$arquivo" >/dev/null 2>&1
+  touch "$marca"
 done
 
-if command -v gltf-transform >/dev/null 2>&1; then
-  for modelo in public/assets/models/*.glb; do
-    [ -e "$modelo" ] || continue
-    gltf-transform optimize "$modelo" "$modelo" --compress meshopt --texture-compress webp
+GLTF=./node_modules/.bin/gltf-transform
+if [ -x "$GLTF" ]; then
+  for fonte in assets-src/models/*/*.gltf assets-src/models/*/*.glb; do
+    [ -e "$fonte" ] || continue
+    nome=$(basename "$(dirname "$fonte")")
+    destino="public/assets/models/$nome.glb"
+    # Meshopt em vez de Draco: comprime malha e tambem as faixas de animacao,
+    # que nesta biblioteca sao a maior parte do arquivo.
+    "$GLTF" optimize "$fonte" "$destino" \
+      --compress meshopt --texture-compress webp --simplify false >/dev/null
+    echo "modelo: $fonte -> $destino"
   done
 else
-  echo "gltf-transform ausente, GLB nao otimizado (nenhum GLB no projeto ainda)"
+  echo "gltf-transform ausente, rode pnpm install" >&2
 fi
 
 depois=$(du -sk public/assets | cut -f1)
