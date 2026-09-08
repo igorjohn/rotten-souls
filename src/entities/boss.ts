@@ -65,6 +65,10 @@ export class Boss implements Damageable {
   onPhaseChange: ((phase: number) => void) | null = null
   onDeath: (() => void) | null = null
   onAttackStart: ((attack: AttackDef) => void) | null = null
+  /** Golpe dele acertou o jogador. */
+  onHitLanded: ((attack: AttackDef) => void) | null = null
+  /** Levou dano. */
+  onHurt: (() => void) | null = null
 
   private rig: Rig | null = null
   private readonly velocity = new Vector3()
@@ -156,6 +160,7 @@ export class Boss implements Damageable {
   takeHit(damage: number, from: Vector3): void {
     if (!this.alive || this.invulnerable) return
     this.character.damage(damage)
+    this.onHurt?.()
 
     if (!this.alive) {
       this.state = 'dead'
@@ -334,6 +339,7 @@ export class Boss implements Damageable {
           Math.round(run.def.damage * phase.damage),
           this.character.object.position,
         )
+        this.onHitLanded?.(run.def)
       }
     }
 

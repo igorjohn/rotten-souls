@@ -1,5 +1,6 @@
 import { Vector3, type PerspectiveCamera } from 'three/webgpu'
 import type { Assets } from './core/assets'
+import type { Audio } from './core/audio'
 import type { Physics } from './core/physics'
 import type { Hud } from './ui/hud'
 import type { Input } from './core/input'
@@ -7,11 +8,16 @@ import { Player } from './entities/player'
 import { Boss, BOSS_NAME } from './entities/boss'
 import { createRig } from './entities/anim/rig'
 import { attachToHand, bossMaterials, buildGreatsword, playerMaterials } from './entities/appearance'
+import type { MeshStandardNodeMaterial } from 'three/webgpu'
 import type { CameraRig } from './entities/camera-rig'
 import type { Arena } from './world/arena'
 import { LAYOUT } from './world/layout'
 
 const MODEL = 'assets/models/personagem-cc0.glb'
+/** Duração da apresentação do chefe, em segundos. */
+const CUTSCENE_SECONDS = 4.2
+const PHASE_ONE_EMBER = 2.6
+const PHASE_TWO_EMBER = 5.4
 /** Altura do modelo CC0 em metros, medida no glTF. */
 const MODEL_HEIGHT = 1.829
 
@@ -37,11 +43,12 @@ export async function createGame(options: {
   physics: Physics
   input: Input
   hud: Hud
+  audio: Audio
   arena: Arena
   camera: PerspectiveCamera
   cameraRig: CameraRig
 }): Promise<Game> {
-  const { assets, physics, input, hud, arena, cameraRig } = options
+  const { assets, physics, input, hud, audio, arena, cameraRig } = options
 
   const gltf = await assets.model(MODEL)
 
@@ -54,17 +61,37 @@ export async function createGame(options: {
   if (playerRig.hand) attachToHand(playerRig.hand, buildGreatsword(1))
 
   const boss = new Boss(physics)
+  const bossSkin = bossMaterials()
   const bossRig = createRig(gltf, {
     scale: boss.height / MODEL_HEIGHT,
-    materials: bossMaterials(),
+    materials: bossSkin,
   })
+  const bossEmber = bossSkin[1] as MeshStandardNodeMaterial
   boss.attachRig(bossRig)
   if (bossRig.hand) attachToHand(bossRig.hand, buildGreatsword(1))
 
   player.enemy = boss
 
-  const state = { phase: 'exploring' as Phase, respawnTimer: 0, victoryTimer: 0 }
+  const state = {
+    phase: 'exploring' as Phase,
+    respawnTimer: 0,
+    victoryTimer: 0,
+    /** Enquanto positivo, o jogador não controla nada. */
+    cutscene: 0,
+  }
   const gatePosition = new Vector3(arena.gate.position.x, 0, arena.gate.position.z)
+
+  // Som. Tudo sintetizado, nenhum arquivo de áudio no bundle.
+  player.onSwing = (heavy) => audio.swing(heavy)
+  player.onStep = (weight) => audio.footstep(weight)
+  player.onHitLanded = () => audio.impact(0.75)
+  player.onHurt = () => {
+    audio.impact(1)
+    cameraRig.punch(0.5)
+  }
+  boss.onAttackStart = () => audio.swing(true)
+  boss.onHitLanded = () => cameraRig.punch(0.8)
+  boss.onHurt = () => audio.impact(0.45)
 
   hud.setBossHealth(1, false)
 
@@ -78,6 +105,11 @@ export async function createGame(options: {
   boss.onPhaseChange = () => {
     hud.setBossHealth(boss.healthRatio, true)
     hud.showHint('a segunda vigília começa', 3)
+    audio.roar()
+    cameraRig.punch(1.1)
+    // A brasa acende de vez na segunda fase. É a leitura mais barata e mais
+    // clara de que a luta mudou: dá pra ver do outro lado da arena.
+    bossEmber.emissiveIntensity = PHASE_TWO_EMBER
   }
 
   boss.onDeath = () => {
@@ -85,22 +117,70 @@ export async function createGame(options: {
     state.victoryTimer = 2
     hud.showVictory()
     hud.hideBoss()
+    audio.stopBossMusic()
+  }
+
+  /**
+   * Apresentação do chefe. A câmera sai de trás do jogador, sobe e corre até
+   * enquadrar Vharen de baixo, que é o ângulo que faz ele parecer grande. Só
+   * depois o nome e a barra entram e o controle volta.
+   */
+  function playIntro(): void {
+    const playerPosition = player.object.position
+    const bossPosition = boss.object.position
+    const behind = new Vector3(
+      playerPosition.x - bossPosition.x,
+      0,
+      playerPosition.z - bossPosition.z,
+    )
+    if (behind.lengthSq() < 0.001) behind.set(0, 0, 1)
+    behind.normalize()
+
+    cameraRig.playCinematic({
+      from: new Vector3(
+        playerPosition.x + behind.x * 4.5,
+        playerPosition.y + 2.4,
+        playerPosition.z + behind.z * 4.5,
+      ),
+      to: new Vector3(
+        bossPosition.x + behind.x * 7.5,
+        1.1,
+        bossPosition.z + behind.z * 7.5,
+      ),
+      lookFrom: new Vector3(playerPosition.x, playerPosition.y + 1.4, playerPosition.z),
+      lookTo: new Vector3(bossPosition.x, bossPosition.y + 3.4, bossPosition.z),
+      duration: CUTSCENE_SECONDS,
+    })
   }
 
   function enterArena(): void {
     if (state.phase !== 'exploring') return
     state.phase = 'fighting'
+    state.cutscene = CUTSCENE_SECONDS
+    input.enabled = false
+    input.clearBuffer()
+    playIntro()
+    // O portão fecha atrás, que é o que transforma a arena em arena.
+    arena.gate.controls.opacity.value = 0.92
+    audio.startBossMusic()
+  }
+
+  function beginFight(): void {
+    input.enabled = true
     boss.wake()
     hud.showBoss(BOSS_NAME)
     hud.setBossHealth(boss.healthRatio, boss.phase === 1)
-    // O portão fecha atrás, que é o que transforma a arena em arena.
-    arena.gate.controls.opacity.value = 0.92
   }
 
   function respawn(): void {
     player.respawn()
     boss.reset()
+    bossEmber.emissiveIntensity = PHASE_ONE_EMBER
     state.phase = 'exploring'
+    state.cutscene = 0
+    input.enabled = true
+    cameraRig.cancelCinematic()
+    audio.stopBossMusic()
     hud.hideDeath()
     hud.hideBoss()
     hud.setBossHealth(1, false)
@@ -137,6 +217,11 @@ export async function createGame(options: {
       hud.setStamina(player.staminaRatio, player.exhausted)
       if (state.phase === 'fighting' || state.phase === 'dead') {
         hud.setBossHealth(boss.healthRatio, boss.phase === 1)
+      }
+
+      if (state.cutscene > 0) {
+        state.cutscene -= dt
+        if (state.cutscene <= 0) beginFight()
       }
 
       if (state.phase === 'dead') {

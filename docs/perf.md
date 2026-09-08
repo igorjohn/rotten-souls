@@ -185,3 +185,56 @@ sombra e outra pro passe de cena. A variação entre o pior e o melhor quadro é
 
 O personagem CC0 acrescenta 1,82 MB, já com Meshopt. Total inicial passa de
 8,6 MB para **10,4 MB**, contra teto de 60 MB e meta de 40 MB.
+
+## M5, som, cutscene e polimento
+
+Data: 2026-09-08
+Máquina: Mac M-series, navegador embutido do Claude Code
+Backend: WebGPU
+Cena: luta em andamento, áudio tocando, chefe na segunda fase
+
+| Métrica | Valor | Limite | Situação |
+|---|---|---|---|
+| Frame time, média de 500 quadros | 7,68 ms | 16 ms | 48% do orçamento |
+| Frame time, percentil 95 | 7,81 ms | 16 ms | sem picos |
+| Frame time, pior quadro | 7,81 ms | 16 ms | variação de 0,13 ms |
+| Draw calls | 75 | 300 | 25% do orçamento |
+| Triângulos | 69 637 | 1 500 000 | 4,6% do orçamento |
+| Luzes com sombra | 1 (a lua) | 1 | no limite |
+| Escala de resolução | 1,00 | mínimo 0,62 | sem redução |
+
+O áudio não aparece no frame time porque a Web Audio API roda no próprio fio de
+áudio do navegador. Todos os sons são sintetizados, então o custo de CPU é de
+alguns osciladores e filtros por evento, e o custo de download é zero.
+
+### Download final
+
+| Parte | Tamanho na rede |
+|---|---|
+| Texturas, 5 materiais PBR com 4 mapas cada | 4,89 MB |
+| Personagem CC0 com 46 animações, Meshopt | 1,74 MB |
+| HDRI do céu noturno | 1,65 MB |
+| Rapier, comprimido | 1,03 MB |
+| Código do jogo, comprimido | 0,25 MB |
+| Three.js, comprimido | 0,07 MB |
+| **Total** | **9,54 MB** |
+
+Contra teto de 60 MB e meta de 40 MB. Numa conexão de 10 Mbps isso abre em
+cerca de 8 segundos, dentro dos 15 que a definição de pronto pede. Falta medir
+isso numa conexão real, o que só dá pra fazer com o link publicado.
+
+Os decodificadores do Draco e do Basis estão no `dist` mas não entram na conta:
+o caminho do decodificador aponta pra CDN e nenhum asset do projeto usa esses
+formatos. Se o KTX2 entrar, o Basis passa a ser baixado, mais 248 KB, e as
+texturas caem bem mais que isso.
+
+### Medição de áudio
+
+Feita com um `AnalyserNode` ligado nos barramentos, medindo RMS do sinal real:
+
+| Situação | RMS |
+|---|---|
+| Só o vento ambiente | 0,080 |
+| Com a música do chefe | 0,111 |
+| Passo por cima da música | 0,115 |
+| Depois de parar a música | 0,089 |

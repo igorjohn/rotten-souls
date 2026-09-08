@@ -32,6 +32,7 @@ export class CameraRig {
   private distance = BASE_DISTANCE
   private shake = 0
   private shakeStrength = 0
+  private cinematic: Cinematic | null = null
 
   constructor(
     private readonly camera: PerspectiveCamera,
@@ -57,7 +58,41 @@ export class CameraRig {
     this.shake = 0.28
   }
 
+  /**
+   * Toma a câmera por um tempo e faz um movimento roteirizado. Usado na
+   * apresentação do chefe. Quando acaba, a câmera volta pro ombro sozinha,
+   * partindo de onde parou, pra não ter corte seco.
+   */
+  playCinematic(shot: {
+    from: Vector3
+    to: Vector3
+    lookFrom: Vector3
+    lookTo: Vector3
+    duration: number
+  }): void {
+    this.cinematic = {
+      time: 0,
+      duration: shot.duration,
+      from: shot.from.clone(),
+      to: shot.to.clone(),
+      lookFrom: shot.lookFrom.clone(),
+      lookTo: shot.lookTo.clone(),
+    }
+  }
+
+  get inCinematic(): boolean {
+    return this.cinematic !== null
+  }
+
+  cancelCinematic(): void {
+    this.cinematic = null
+  }
+
   update(dt: number, follow: Object3D, height: number, target: Object3D | null): void {
+    if (this.cinematic) {
+      this.updateCinematic(dt)
+      return
+    }
     this.pivot.copy(follow.position)
     this.pivot.y += PIVOT_HEIGHT * (height / 1.85)
 
@@ -119,6 +154,22 @@ export class CameraRig {
     this.camera.lookAt(this.lookTarget)
   }
 
+  private updateCinematic(dt: number): void {
+    const shot = this.cinematic
+    if (!shot) return
+    shot.time += dt
+    const t = Math.min(1, shot.time / shot.duration)
+    // Suavizado nas duas pontas: o movimento entra e sai sem solavanco.
+    const eased = t * t * (3 - 2 * t)
+
+    this.desired.copy(shot.from).lerp(shot.to, eased)
+    this.camera.position.copy(this.desired)
+    this.lookTarget.copy(shot.lookFrom).lerp(shot.lookTo, eased)
+    this.camera.lookAt(this.lookTarget)
+
+    if (t >= 1) this.cinematic = null
+  }
+
   /** Corta a distância se tem parede entre o pivô e a câmera. */
   private clampAgainstWorld(): void {
     this.rayDirection.copy(this.desired).sub(this.pivot)
@@ -142,6 +193,15 @@ export class CameraRig {
       this.desired.copy(this.pivot).addScaledVector(this.rayDirection, safe)
     }
   }
+}
+
+interface Cinematic {
+  time: number
+  duration: number
+  from: Vector3
+  to: Vector3
+  lookFrom: Vector3
+  lookTo: Vector3
 }
 
 function approachAngle(current: number, target: number, t: number): number {

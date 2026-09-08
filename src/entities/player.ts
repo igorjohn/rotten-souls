@@ -53,6 +53,14 @@ export class Player implements Damageable {
   enemy: Damageable | null = null
   /** Chamado quando a vida chega a zero. */
   onDeath: (() => void) | null = null
+  /** Golpe iniciado. `heavy` diz se foi o pesado. */
+  onSwing: ((heavy: boolean) => void) | null = null
+  /** Pé no chão. `weight` de 0 a 1, andando ou correndo. */
+  onStep: ((weight: number) => void) | null = null
+  /** Golpe acertou o alvo. */
+  onHitLanded: (() => void) | null = null
+  /** Levou dano. */
+  onHurt: (() => void) | null = null
 
   private rig: Rig | null = null
   private readonly velocity = new Vector3()
@@ -70,6 +78,8 @@ export class Player implements Damageable {
   private recovery = 0
   private stagger = 0
   private iframeTimer = 0
+  /** Distância percorrida desde o último passo, pro som seguir a passada. */
+  private strideDistance = 0
 
   constructor(
     physics: Physics,
@@ -160,6 +170,7 @@ export class Player implements Damageable {
     this.character.damage(damage)
     this.iframeTimer = HIT_IFRAMES
     this.attack = null
+    this.onHurt?.()
 
     if (!this.alive) {
       this.state = 'dead'
@@ -317,6 +328,19 @@ export class Player implements Damageable {
     if (!moving) this.setState('idle', CLIPS.idle)
     else if (running) this.setState('run', CLIPS.run)
     else this.setState('walk', CLIPS.walk)
+
+    // Passo por distância, não por tempo: assim a passada acompanha a
+    // velocidade sem precisar de evento na animação.
+    if (moving && this.character.grounded) {
+      this.strideDistance += Math.hypot(this.velocity.x, this.velocity.z) * dt
+      const stride = running ? 2.05 : 1.5
+      if (this.strideDistance >= stride) {
+        this.strideDistance = 0
+        this.onStep?.(running ? 0.85 : 0.4)
+      }
+    } else {
+      this.strideDistance = Math.min(this.strideDistance, 1)
+    }
   }
 
   private faceTarget(dt: number, moving: boolean): void {
@@ -380,6 +404,7 @@ export class Player implements Damageable {
       this.character.snapTo(Math.atan2(this.wish.x, this.wish.z))
     }
     this.rig?.play(def.clip, { once: true, fade: 0.1, restart: true, speed: def.speed })
+    this.onSwing?.(def === PLAYER_ATTACKS.heavy)
   }
 
   private updateAttack(dt: number): void {
@@ -409,6 +434,7 @@ export class Player implements Damageable {
       if (hit) {
         run.markHit()
         this.enemy.takeHit(run.def.damage, this.character.object.position)
+        this.onHitLanded?.()
       }
     }
 

@@ -7,6 +7,7 @@ import { Physics } from './core/physics'
 import { StatsPanel } from './debug/stats'
 import { exposeScreenshotHelper, flushScreenshot } from './debug/screenshot'
 import { Hud, setRendererBadge } from './ui/hud'
+import { Audio } from './core/audio'
 import { buildArena } from './world/arena'
 import { loadMaterials } from './world/materials'
 import { buildLighting, flickerBraziers } from './world/lighting'
@@ -53,12 +54,14 @@ async function boot(): Promise<void> {
 
   hud.setLoading(0.86, 'afiando o montante')
   const input = new Input(canvas)
+  const audio = new Audio()
   const rig = new CameraRig(ctx.camera, physics)
   const game = await createGame({
     assets,
     physics,
     input,
     hud,
+    audio,
     arena,
     camera: ctx.camera,
     cameraRig: rig,
@@ -81,7 +84,7 @@ async function boot(): Promise<void> {
     exposeScreenshotHelper()
     ;(window as unknown as { game: unknown }).game = {
       ctx, input, player, boss: game.boss, jogo: game, rig, arena, lighting,
-      physics, postfx, fogControls, brazierFx,
+      physics, postfx, fogControls, brazierFx, audio,
     }
     ;(window as unknown as { perf: () => unknown }).perf = () => ({
       ...stats.snapshot,
@@ -204,6 +207,8 @@ async function boot(): Promise<void> {
   hud.setLoading(1, 'pronto')
   hud.finishLoading()
   hud.onStart(() => {
+    // O contexto de áudio só pode nascer dentro de um gesto do usuário.
+    audio.start()
     input.enabled = true
     input.requestPointerLock()
     hud.show()

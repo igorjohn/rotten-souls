@@ -68,3 +68,20 @@ Uma linha por decisão, com data e motivo. Inclui troca de asset e corte de esco
 - **Nomes de osso perdem o ponto no carregador do Three.** `DEF-hand.R` chega como `DEF-handR`, e por isso a arma não prendia na mão. O código aceita as duas formas.
 - **HUD trocou `requestAnimationFrame` por reflow forçado.** As telas de morte e de vitória usam uma transição de CSS que precisa de um quadro entre tirar o `display:none` e adicionar a classe. Com `requestAnimationFrame` isso não acontece em documento oculto e as telas nunca apareciam. Um `void element.offsetWidth` resolve de forma síncrona e sempre.
 - **Bloqueio segue fora do escopo,** consequência da escolha de montante sem escudo lá no M1. A defesa é rolar.
+
+## 2026-09-08, M5
+
+- **Áudio inteiro sintetizado na Web Audio API, nenhum arquivo de som no bundle.** Som de arena escura é vento, passo em pedra, corte no ar, impacto e um bordão grave, e tudo isso é ruído filtrado e oscilador com envelope. Sai mais leve que qualquer amostra comprimida, não tem licença pra rastrear, e responde a parâmetro: o mesmo gerador de passo faz andar seco e correr pesado só mudando um número, sem precisar de uma gravação pra cada caso.
+- **Música do chefe é bordão, não melodia.** Ré e Lá numa quinta aberta, quatro serras levemente desafinadas passando por filtro grave, e um tambor a cada dois segundos e meio fora do quadrado. Melodia cansa em cinco minutos de luta; bordão não.
+- **Passo por distância percorrida, não por tempo.** A passada acompanha a velocidade sozinha, sem precisar de evento dentro da animação.
+- **Cutscene de entrada em 4,2 segundos.** A câmera sai de trás do jogador, sobe e corre até enquadrar Vharen de baixo, que é o ângulo que faz ele parecer grande. O controle fica desligado até o fim e só então o nome e a barra entram. A câmera volta pro ombro a partir de onde parou, sem corte seco.
+- **Brasa do chefe acende na segunda fase,** de 2,6 para 5,4 de intensidade emissiva. É a leitura mais barata e mais clara de que a luta mudou, e por ser emissiva o bloom pega: dá pra ver do outro lado da arena.
+- **Verificação de áudio por medição, não por suposição.** Um `AnalyserNode` nos barramentos mede o RMS do sinal real. Sem isso não dava pra afirmar que o som existe, já que a sessão de desenvolvimento não tem alto-falante.
+
+## Escopo que ficou de fora, e por quê
+
+- **Link público.** Decisão do Igor de deixar pra depois. O critério do M0 segue pendente.
+- **Props do Tripo, 2 a 4 no M3.** Não cabe no saldo. Sobraram 56 créditos na Higgsfield; o Meshy com rig custa 47,5 e cada prop do Tripo custa 9. Ou o chefe definitivo ou os props. Reservei o saldo pro chefe, que é o centro do slice, e a arquitetura por código já entrega bem sem eles.
+- **Chefe definitivo gerado e riggado, com retarget.** Depende da decisão de gastar os 47,5 créditos. O Vharen atual é o mannequim CC0 escalado com material de brasa, que funciona mas não é o cavaleiro do concept.
+- **Texturas em KTX2.** O codificador do KTX-Software não está instalado nesta máquina e não há formula do Homebrew pra ele. O ganho seria de VRAM, não de download, e o download já está em 9,54 MB contra teto de 60.
+- **Bloqueio e aparo.** Cortados lá no M1 pela escolha de montante sem escudo. A defesa é rolar.
