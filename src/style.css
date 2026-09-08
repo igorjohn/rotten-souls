@@ -1,0 +1,381 @@
+/* Paleta da direção de arte. Ver docs/art-direction.md */
+:root {
+  --void: #05070c;
+  --stone: #3a3b3f;
+  --stone-light: #6b6a63;
+  --moss: #3d4a2b;
+  --fire: #ff8a2a;
+  --ember: #ffd17a;
+  --moon: #8fa9c9;
+  --blood: #8b1e1e;
+  --ink: rgba(5, 7, 12, 0.72);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--void);
+  color: #cfc7b6;
+  font-family: "EB Garamond", Georgia, "Times New Roman", serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+canvas#game {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+}
+
+/* ---------- HUD ---------- */
+
+#hud {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 600ms ease;
+}
+
+#hud.visible {
+  opacity: 1;
+}
+
+#hud-player {
+  position: absolute;
+  top: 26px;
+  left: 34px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.bar {
+  position: relative;
+  height: 15px;
+  border: 1px solid rgba(0, 0, 0, 0.85);
+  background: rgba(8, 8, 10, 0.86);
+  box-shadow:
+    inset 0 0 0 1px rgba(140, 130, 110, 0.22),
+    0 1px 5px rgba(0, 0, 0, 0.7);
+}
+
+/* i = rastro do dano, b = valor atual */
+.bar i,
+.bar b {
+  position: absolute;
+  inset: 1px;
+  transform-origin: left center;
+  display: block;
+}
+
+.bar i {
+  background: #d8c9a0;
+  opacity: 0.55;
+  transition: transform 520ms cubic-bezier(0.22, 0.61, 0.36, 1) 260ms;
+}
+
+.bar b {
+  transition: transform 90ms linear;
+}
+
+.bar-health {
+  width: 340px;
+}
+.bar-health b {
+  background: linear-gradient(180deg, #c33b32, var(--blood) 55%, #5d1212);
+}
+
+.bar-stamina {
+  width: 290px;
+  height: 11px;
+}
+.bar-stamina b {
+  background: linear-gradient(180deg, #b6c07a, #6d7c3b 60%, #3c471f);
+}
+.bar-stamina.spent b {
+  background: linear-gradient(180deg, #8a8a7a, #55554a);
+}
+
+#hud-boss {
+  position: absolute;
+  left: 50%;
+  bottom: 54px;
+  width: min(58vw, 760px);
+  transform: translateX(-50%);
+  transition: opacity 500ms ease;
+}
+
+#hud-boss.hidden {
+  opacity: 0;
+}
+
+.boss-name {
+  font-family: Cinzel, Georgia, serif;
+  font-size: 15px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  text-align: center;
+  color: #d9cdb4;
+  text-shadow: 0 2px 8px #000;
+  margin-bottom: 7px;
+}
+
+.bar-boss {
+  width: 100%;
+  height: 13px;
+}
+.bar-boss b {
+  background: linear-gradient(180deg, #d6483a, #8b1e1e 55%, #4a0f0f);
+}
+.bar-boss.phase-two b {
+  background: linear-gradient(180deg, #ffb04a, #d0521a 55%, #6a2409);
+}
+
+#lockon {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  margin: -13px 0 0 -13px;
+  border: 1px solid rgba(232, 220, 195, 0.9);
+  border-radius: 50%;
+  box-shadow: 0 0 12px rgba(0, 0, 0, 0.9);
+  transition: opacity 160ms ease;
+}
+
+#lockon::after {
+  content: "";
+  position: absolute;
+  inset: 9px;
+  border-radius: 50%;
+  background: rgba(232, 220, 195, 0.9);
+}
+
+#hint {
+  position: absolute;
+  left: 50%;
+  bottom: 16%;
+  transform: translateX(-50%);
+  font-size: 17px;
+  letter-spacing: 0.05em;
+  color: #ddd2ba;
+  text-shadow: 0 2px 10px #000;
+  opacity: 0;
+  transition: opacity 400ms ease;
+}
+
+#hint.visible {
+  opacity: 1;
+}
+
+/* ---------- Telas cheias ---------- */
+
+.fullscreen-message {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(ellipse at center, rgba(20, 2, 2, 0.55), rgba(0, 0, 0, 0.94) 70%);
+  z-index: 40;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 900ms ease;
+}
+
+.fullscreen-message.showing {
+  opacity: 1;
+}
+
+.fullscreen-message span {
+  font-family: Cinzel, Georgia, serif;
+  font-size: clamp(34px, 6.4vw, 86px);
+  letter-spacing: 0.11em;
+  color: #9b1f1f;
+  text-shadow:
+    0 0 34px rgba(139, 30, 30, 0.55),
+    0 4px 22px #000;
+  transform: scale(0.94);
+  transition: transform 2600ms cubic-bezier(0.15, 0.7, 0.2, 1);
+}
+
+.fullscreen-message.showing span {
+  transform: scale(1);
+}
+
+.fullscreen-message.victory span {
+  color: #e2c98a;
+  text-shadow:
+    0 0 38px rgba(226, 201, 138, 0.4),
+    0 4px 22px #000;
+  font-size: clamp(26px, 4.6vw, 62px);
+}
+
+.area-title {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 30%;
+  display: grid;
+  place-items: center;
+  z-index: 30;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 1200ms ease;
+}
+
+.area-title.showing {
+  opacity: 1;
+}
+
+.area-title span {
+  font-family: Cinzel, Georgia, serif;
+  font-size: clamp(22px, 3.4vw, 44px);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #ded2b8;
+  text-shadow: 0 3px 20px #000;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(222, 210, 184, 0.35);
+}
+
+/* ---------- Carregamento e portão inicial ---------- */
+
+#loading,
+#start-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(ellipse at 50% 40%, rgba(40, 24, 10, 0.35), transparent 62%),
+    var(--void);
+  transition: opacity 800ms ease;
+}
+
+#loading.gone,
+#start-gate.gone {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.loading-inner,
+.start-inner {
+  text-align: center;
+  max-width: 640px;
+  padding: 0 24px;
+}
+
+#loading h1,
+#start-gate h1 {
+  font-family: Cinzel, Georgia, serif;
+  font-weight: 600;
+  font-size: clamp(28px, 4.6vw, 54px);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #ddd0b4;
+  margin: 0 0 26px;
+  text-shadow: 0 0 30px rgba(255, 138, 42, 0.14);
+}
+
+.loading-bar {
+  width: min(60vw, 380px);
+  height: 2px;
+  margin: 0 auto;
+  background: rgba(200, 185, 155, 0.16);
+  overflow: hidden;
+}
+
+.loading-bar i {
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--fire), var(--ember));
+  box-shadow: 0 0 14px var(--fire);
+  transition: width 320ms ease;
+}
+
+#loading-status {
+  margin-top: 16px;
+  font-size: 14px;
+  letter-spacing: 0.09em;
+  color: #7e7565;
+  font-style: italic;
+}
+
+.start-sub {
+  color: #8d8474;
+  font-style: italic;
+  font-size: 17px;
+  margin: -12px 0 30px;
+}
+
+#start-button {
+  font-family: Cinzel, Georgia, serif;
+  font-size: 15px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: #e6d9bd;
+  background: transparent;
+  border: 1px solid rgba(222, 200, 160, 0.4);
+  padding: 15px 52px;
+  cursor: pointer;
+  transition:
+    background 260ms ease,
+    border-color 260ms ease,
+    letter-spacing 260ms ease;
+}
+
+#start-button:hover,
+#start-button:focus-visible {
+  background: rgba(255, 138, 42, 0.09);
+  border-color: rgba(255, 178, 106, 0.75);
+  letter-spacing: 0.3em;
+  outline: none;
+}
+
+.controls {
+  list-style: none;
+  padding: 0;
+  margin: 40px auto 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 22px;
+  font-size: 13px;
+  color: #6f6959;
+}
+
+.controls kbd {
+  font-family: inherit;
+  font-size: 12px;
+  border: 1px solid rgba(160, 150, 130, 0.35);
+  padding: 1px 7px;
+  margin-right: 4px;
+  color: #a49b87;
+}
+
+#renderer-badge {
+  position: fixed;
+  right: 10px;
+  bottom: 8px;
+  z-index: 70;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: rgba(180, 170, 150, 0.32);
+  pointer-events: none;
+  user-select: none;
+}

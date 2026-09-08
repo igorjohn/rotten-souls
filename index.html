@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#05070c" />
+    <title>Pátio das Cinzas</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%2305070c'/%3E%3Cpath d='M16 4c3 5-1 7 0 10 1 2 4 1 4-2 3 3 4 7 4 9a8 8 0 1 1-16 0c0-5 5-9 8-17z' fill='%23ff8a2a'/%3E%3Cpath d='M16 15c2 3 0 4 1 6 1 1 2 0 2-1 1 2 2 3 2 5a5 5 0 0 1-10 0c0-3 3-5 5-10z' fill='%23ffd17a'/%3E%3C/svg%3E" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <canvas id="game"></canvas>
+
+    <!-- Camada de HUD. Tudo em HTML por cima do canvas, nada de UI dentro do WebGL. -->
+    <div id="hud" aria-hidden="true">
+      <div id="hud-player">
+        <div class="bar bar-health"><i></i><b></b></div>
+        <div class="bar bar-stamina"><i></i><b></b></div>
+      </div>
+
+      <div id="hud-boss" class="hidden">
+        <div class="boss-name">Vharen, Vigília das Ruínas</div>
+        <div class="bar bar-boss"><i></i><b></b></div>
+      </div>
+
+      <div id="lockon" class="hidden"></div>
+      <div id="hint"></div>
+    </div>
+
+    <div id="overlay-death" class="fullscreen-message hidden">
+      <span>VOCÊ MORREU</span>
+    </div>
+
+    <div id="overlay-victory" class="fullscreen-message victory hidden">
+      <span>GRANDE INIMIGO ABATIDO</span>
+    </div>
+
+    <div id="overlay-area" class="area-title hidden">
+      <span>Pátio das Cinzas</span>
+    </div>
+
+    <div id="loading">
+      <div class="loading-inner">
+        <h1>Pátio das Cinzas</h1>
+        <div class="loading-bar"><i></i></div>
+        <p id="loading-status">acendendo os braseiros</p>
+      </div>
+    </div>
+
+    <div id="start-gate" class="hidden">
+      <div class="start-inner">
+        <h1>Pátio das Cinzas</h1>
+        <p class="start-sub">Vharen, Vigília das Ruínas, ainda guarda o portão.</p>
+        <button id="start-button" type="button">Entrar</button>
+        <ul class="controls">
+          <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> mover</li>
+          <li><kbd>Shift</kbd> correr</li>
+          <li><kbd>Espaço</kbd> esquiva</li>
+          <li><kbd>Mouse esq.</kbd> ataque leve</li>
+          <li><kbd>Mouse dir.</kbd> ataque pesado</li>
+          <li><kbd>Q</kbd> ou <kbd>Mouse meio</kbd> lock-on</li>
+        </ul>
+      </div>
+    </div>
+
+    <div id="renderer-badge"></div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

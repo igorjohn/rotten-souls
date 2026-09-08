@@ -1,0 +1,4 @@
+moonlit_golf_1k.hdr
+Fonte: Poly Haven (https://polyhaven.com/a/moonlit_golf)
+Licenca: CC0, dominio publico, sem exigencia de atribuicao.
+Uso: iluminacao ambiente e reflexo do ceu noturno do Patio das Cinzas.

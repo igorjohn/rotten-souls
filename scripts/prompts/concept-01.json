@@ -1,0 +1,41 @@
+{
+  "defaults": { "model": "pro", "resolution": "2K" },
+  "jobs": [
+    {
+      "out": "concept-arena-a-anel-preservado",
+      "aspectRatio": "16:9",
+      "prompt": "Concept art de videogame, arena de chefe estilo Dark Souls, vista em terceira pessoa levemente elevada. Patio circular de pedra em ruinas ao ar livre, a noite. Anel de arcos goticos gastos de 8 metros de altura cercando a arena, alguns intactos, pilares de 10 metros. Uma escadaria larga de pedra desce para dentro do anel no primeiro plano. Ao fundo, um portao alto preenchido por uma parede de nevoa branca luminosa. Doze braseiros de ferro com fogo laranja quente espalhados pelo perimetro, cada um lancando luz curta e quente nas pedras proximas. Luz principal: lua fria azulada vindo de tras e de cima, criando silhuetas e sombras longas e suaves. Nevoa de altura densa cobrindo os primeiros dois metros do chao, nevoa de distancia comendo o fundo, raios de luar fracos atravessando os arcos. Pedra desgastada com musgo nas frestas, chao molhado refletindo o fogo. Exposicao baixa, imagem muito escura com detalhe nas sombras, contraste forte entre azul frio e ambar quente. Paleta: fundo azul quase preto, pedra cinza, musgo verde escuro, fogo laranja e ambar, luar azul acinzentado. Sem personagens, sem texto, sem interface. Cinematografico, realista, alta fidelidade.",
+      "model": "pro"
+    },
+    {
+      "out": "concept-arena-b-anel-arruinado",
+      "aspectRatio": "16:9",
+      "prompt": "Concept art de videogame, arena de chefe estilo Dark Souls, camera baixa em terceira pessoa. Patio circular de pedra profundamente arruinado a noite. Metade dos arcos goticos desabou, deixando cotos de pilar quebrados e vigas de pedra atravessadas no chao. Grandes escombros e blocos tombados formando cobertura irregular no anel. Chao encharcado com pocas rasas espelhando o fogo dos braseiros. Braseiros de ferro tortos com chama laranja intensa, brasas e faiscas subindo, fumaca fina. Luz principal: lua fria azulada atras e acima, recortando as silhuetas quebradas contra o ceu. Nevoa espessa no chao escondendo a base das ruinas, nevoa volumetrica no fundo. Musgo e liquen nas frestas, metal oxidado, madeira queimada. Exposicao baixa, quase preto com detalhe, contraste azul frio contra ambar quente. Sem personagens, sem texto, sem interface. Cinematografico, realista, alta fidelidade.",
+      "model": "pro"
+    },
+    {
+      "out": "concept-arena-c-anfiteatro-afundado",
+      "aspectRatio": "16:9",
+      "prompt": "Concept art de videogame, arena de chefe estilo Dark Souls. Anfiteatro circular afundado de pedra, a noite, visto de cima da borda olhando para o fosso de combate. Muro alto continuo de blocos gastos cercando o poco, com uma passarela superior arruinada e arcadas escuras. Uma escadaria larga desce da borda ate o piso da arena. No lado oposto, um portao monumental preenchido por nevoa branca luminosa. Braseiros de ferro acesos encaixados no muro em intervalos regulares, luz laranja quente lambendo a pedra. Luz principal: lua fria azulada alta e atras, luar entrando pelas arcadas em feixes fracos. Nevoa densa no piso do fosso, nevoa de distancia apagando o topo do muro. Pedra manchada, musgo, ferro enferrujado. Muito escuro, exposicao baixa, contraste forte entre azul frio e ambar. Escala monumental, arquitetura grande demais para um humano. Sem personagens, sem texto, sem interface. Cinematografico, realista, alta fidelidade.",
+      "model": "pro"
+    },
+    {
+      "out": "concept-vharen-a-cavaleiro-brasa",
+      "aspectRatio": "3:4",
+      "prompt": "Concept art de chefe de videogame estilo Dark Souls, corpo inteiro, vista frontal. Vharen, Vigilia das Ruinas: cavaleiro colossal de quase quatro metros, tres vezes a altura de um humano. Armadura de placas pesada e escurecida pelo fogo, cravada de rebites, com brasas laranja vivas brilhando nas frestas das juntas e por baixo do peitoral, como se o corpo por dentro ainda queimasse. Elmo fechado sem rosto, apenas duas fendas com luz de brasa. Capa esfarrapada e queimada nas bordas. Empunha um montante enorme de ferro escuro, lascado e chamuscado. Silhueta larga nos ombros e legivel contra a nevoa. Iluminacao noturna: luz de contorno azul fria da lua vindo de tras, luz quente laranja de baixo vindo das proprias brasas e de um braseiro fora de quadro. Fundo de nevoa escura e ruinas de pedra desfocadas. Paleta: ferro quase preto, ambar e laranja das brasas, azul acinzentado do luar. Sem texto, sem interface. Cinematografico, realista, alta fidelidade.",
+      "model": "pro"
+    },
+    {
+      "out": "concept-vharen-b-guardiao-lanterna",
+      "aspectRatio": "3:4",
+      "prompt": "Concept art de chefe de videogame estilo Dark Souls, corpo inteiro, vista frontal, pose de guarda. Vharen, Vigilia das Ruinas: guardiao colossal encapuzado de quase quatro metros. Sob o manto pesado e apodrecido ve-se uma armacao alta e magra de armadura corroida sobre ossos, sem carne. Coroa de ferro retorcida meio afundada no capuz, apenas escuridao e um ponto de luz palida onde estaria o rosto. Numa das maos, um montante longo de lamina enferrujada apoiado no chao; na outra, uma lanterna de ferro pendurada com uma chama fraca e azulada. Correntes soltas e tiras de tecido rasgado balancando. Silhueta alta, estreita e inconfundivel contra a nevoa. Iluminacao noturna: luz de contorno azul fria da lua atras, luz baixa e fraca da lanterna abaixo, um brilho laranja distante de braseiro no fundo. Fundo de nevoa densa e pedra arruinada. Paleta: preto, cinza, verde acinzentado do manto, azul palido da chama, um toque de ambar ao longe. Sem texto, sem interface. Cinematografico, realista, alta fidelidade.",
+      "model": "pro"
+    },
+    {
+      "out": "concept-vharen-c-sentinela-chifres",
+      "aspectRatio": "3:4",
+      "prompt": "Concept art de chefe de videogame estilo Dark Souls, corpo inteiro, vista frontal. Vharen, Vigilia das Ruinas: sentinela colossal de quase quatro metros, larga e pesada. Armadura de placas sobrepostas e grossas, riscada e amassada por seculos de vigilia, com musgo e liquen crescendo nas partes que nao se movem, como se estivesse parado no mesmo lugar ha tempo demais. Elmo com dois chifres longos e assimetricos, um deles quebrado ao meio. Ombreiras enormes com pedra incrustada. Manto de couro esfarrapado preso por correntes enferrujadas. Empunha um montante gigantesco de pedra e ferro, mais alto que um humano. Postura pesada, arqueada para a frente, peso apoiado na arma. Iluminacao noturna: luz de contorno azul fria da lua vindo de tras e de cima, luz quente laranja de braseiro fora de quadro batendo de baixo num dos lados. Fundo de nevoa escura e arcos de pedra quebrados. Paleta: ferro escuro, musgo verde, ambar do fogo, azul acinzentado do luar. Sem texto, sem interface. Cinematografico, realista, alta fidelidade.",
+      "model": "pro"
+    }
+  ]
+}
