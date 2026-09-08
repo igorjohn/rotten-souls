@@ -1,12 +1,15 @@
 /**
- * Áudio do jogo, inteiro sintetizado na Web Audio API. Nenhum arquivo de som
- * entra no bundle.
+ * Áudio do jogo. Ambiente, passo, impacto, rugido e música são sintetizados na
+ * Web Audio API: som de arena escura é vento, pedra e bordão grave, e isso sai
+ * de ruído filtrado com envelope, mais leve que qualquer amostra comprimida e
+ * parametrizável (peso do golpe, distância do braseiro) sem uma gravação pra
+ * cada caso.
  *
- * A escolha não é preguiça: som de arena escura é vento, passo em pedra, corte
- * no ar, impacto e um bordão grave. Tudo isso é ruído filtrado e oscilador com
- * envelope, que sai mais leve que qualquer amostra comprimida, não tem licença
- * pra rastrear e responde a parâmetro (peso do golpe, distância do braseiro)
- * sem precisar de uma variação gravada pra cada caso.
+ * A exceção é o corte no ar. Lâmina passando tem uma textura de atrito que o
+ * ruído varrido não imita bem, então o golpe usa um banco de amostras gravadas
+ * (`public/assets/audio/swings`, fatiadas por `scripts/trim-swings.py`),
+ * sorteadas a cada golpe pra não repetir o mesmo som na sequência. Se o banco
+ * não carregar, o corte volta pro sintetizado sem quebrar nada.
  */
 
 export type Bus = 'sfx' | 'ambient' | 'music'
@@ -18,6 +21,9 @@ interface Buses {
 }
 
 const MASTER_LEVEL = 0.85
+
+/** Amostras de corte no ar, geradas por `scripts/trim-swings.py`. */
+const SWINGS_DIR = 'assets/audio/swings'
 
 /**
  * `?mute` na URL abre o jogo sem som. Serve pra abrir uma segunda aba de teste
@@ -40,6 +46,9 @@ export class Audio {
   private musicPulse = 0
   private musicTimer: number | null = null
   private started = false
+  /** Banco de cortes no ar. Vazio até o fetch terminar; aí `swing` passa a usá-lo. */
+  private swings: AudioBuffer[] = []
+  private lastSwing = -1
 
   /** Precisa de um gesto do usuário. Chamado no clique do botão Entrar. */
   start(): void {
@@ -62,7 +71,34 @@ export class Audio {
 
     this.noise = makeNoiseBuffer(context, 2.5)
     this.startAmbient()
+    void this.loadSwings(context)
     void context.resume()
+  }
+
+  /**
+   * Busca o banco de cortes em segundo plano. Não bloqueia a entrada na arena:
+   * até terminar, `swing` usa o sintetizado. São 148 KB, então na prática já
+   * está pronto antes do primeiro golpe.
+   */
+  private async loadSwings(context: AudioContext): Promise<void> {
+    try {
+      const resposta = await fetch(`${SWINGS_DIR}/manifest.json`)
+      if (!resposta.ok) return
+      const manifesto = (await resposta.json()) as { amostras?: { arquivo: string }[] }
+      const arquivos = manifesto.amostras ?? []
+      if (arquivos.length === 0) return
+
+      const buffers = await Promise.all(
+        arquivos.map(async ({ arquivo }) => {
+          const dados = await fetch(`${SWINGS_DIR}/${arquivo}`)
+          if (!dados.ok) throw new Error(arquivo)
+          return context.decodeAudioData(await dados.arrayBuffer())
+        }),
+      )
+      this.swings = buffers
+    } catch {
+      // Sem banco o jogo continua com o corte sintetizado. Nada a fazer aqui.
+    }
   }
 
   get enabled(): boolean {
@@ -135,8 +171,44 @@ export class Audio {
     source.stop(now + 0.24)
   }
 
-  /** Corte no ar. O pesado é mais longo, mais grave e mais alto. */
+  /**
+   * Corte no ar. Sorteia uma amostra do banco e nunca repete a anterior, que é
+   * o que mata a sensação de som de jogo barato numa sequência de três golpes.
+   * O pesado desce o pitch e sobe o volume, em vez de ter um banco só dele: as
+   * gravações têm todas o mesmo caráter, separar em dois conjuntos daria uma
+   * variedade menor por golpe sem soar mais pesado.
+   */
   swing(heavy = false): void {
+    if (this.playSwingSample(heavy)) return
+    this.synthSwing(heavy)
+  }
+
+  /** Devolve `false` quando o banco ainda não carregou, pra cair no sintetizado. */
+  private playSwingSample(heavy: boolean): boolean {
+    const { context, buses, swings } = this
+    if (!context || !buses || swings.length === 0) return false
+
+    let index = Math.floor(Math.random() * swings.length)
+    if (swings.length > 1 && index === this.lastSwing) {
+      index = (index + 1 + Math.floor(Math.random() * (swings.length - 1))) % swings.length
+    }
+    this.lastSwing = index
+
+    const source = context.createBufferSource()
+    source.buffer = swings[index]
+    // Pitch é o que separa leve de pesado; o tremor evita o efeito de eco
+    // quando dois golpes iguais saem colados.
+    source.playbackRate.value = (heavy ? 0.82 : 1.05) * (0.94 + Math.random() * 0.12)
+
+    const gain = context.createGain()
+    gain.gain.value = heavy ? 0.85 : 0.6
+
+    source.connect(gain).connect(buses.sfx)
+    source.start(context.currentTime)
+    return true
+  }
+
+  private synthSwing(heavy: boolean): void {
     const { context, buses, noise } = this
     if (!context || !buses || !noise) return
     const now = context.currentTime

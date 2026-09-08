@@ -1,0 +1,42 @@
+{
+  "fonte": "YouTube 4bJI-e28kFg, sword slash (sound effects), canal Mani creation",
+  "licenca": "licenca padrao do YouTube, uso nao liberado explicitamente",
+  "amostras": [
+    {
+      "arquivo": "swing-01.mp3",
+      "duracao": 0.879
+    },
+    {
+      "arquivo": "swing-02.mp3",
+      "duracao": 0.967
+    },
+    {
+      "arquivo": "swing-03.mp3",
+      "duracao": 0.815
+    },
+    {
+      "arquivo": "swing-04.mp3",
+      "duracao": 1.078
+    },
+    {
+      "arquivo": "swing-05.mp3",
+      "duracao": 1.011
+    },
+    {
+      "arquivo": "swing-06.mp3",
+      "duracao": 1.375
+    },
+    {
+      "arquivo": "swing-07.mp3",
+      "duracao": 0.964
+    },
+    {
+      "arquivo": "swing-08.mp3",
+      "duracao": 0.958
+    },
+    {
+      "arquivo": "swing-09.mp3",
+      "duracao": 0.909
+    }
+  ]
+}

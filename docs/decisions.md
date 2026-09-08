@@ -171,3 +171,5 @@ Três coisas foram medidas no caminho e valem por si:
 mannequim CC0, que anima certo. Fechar isso direito quer o retarget feito fora
 do jogo, com correção osso a osso, e entregue como GLB pronto. Sem isso, é
 trocar um chefe que funciona por um bonito que se desmonta andando.
+
+- 2026-09-08: corte no ar deixou de ser 100% sintetizado. Nove amostras gravadas de lâmina, fatiadas do vídeo `4bJI-e28kFg` por `scripts/trim-swings.py` (detecção de silêncio, pico normalizado em -1 dBFS, mp3 mono 128k, 148 KB no total), sorteadas sem repetir a anterior. Leve e pesado saem de pitch e volume, não de bancos separados. Motivo: ruído varrido não imita o atrito da lâmina passando. Ressalva: a fonte está sob licença padrão do YouTube, sem liberação explícita, então antes de qualquer publicação essas amostras precisam ser trocadas por CC0. O código lê `manifest.json`, então a troca é só regerar a pasta.

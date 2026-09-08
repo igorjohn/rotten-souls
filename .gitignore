@@ -7,5 +7,6 @@ dist
 assets-src/**/*.png
 assets-src/**/*.jpg
 assets-src/**/*.glb
+assets-src/**/*.wav
 *.log
 .vite
