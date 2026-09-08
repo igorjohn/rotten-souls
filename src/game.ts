@@ -7,6 +7,7 @@ import type { Input } from './core/input'
 import { Player } from './entities/player'
 import { Boss, BOSS_NAME } from './entities/boss'
 import { createRig } from './entities/anim/rig'
+import { createRetargetedSkin, type RetargetedSkin } from './entities/anim/retarget'
 import { attachToHand, bossMaterials, buildGreatsword, playerMaterials } from './entities/appearance'
 import type { MeshStandardNodeMaterial } from 'three/webgpu'
 import type { CameraRig } from './entities/camera-rig'
@@ -14,6 +15,16 @@ import type { Arena } from './world/arena'
 import { LAYOUT } from './world/layout'
 
 const MODEL = 'assets/models/personagem-cc0.glb'
+/** Vharen definitivo, gerado a partir do concept e riggado. */
+const BOSS_MODEL = 'assets/models/vharen.glb'
+/**
+ * Altura e base do modelo gerado, medidas nos vértices já deformados pelo
+ * esqueleto. Não dá pra confiar na caixa da geometria aqui: ela ignora o
+ * esfolamento e devolve 0,02, cem vezes menor que o tamanho real. E a origem
+ * do modelo fica no centro do corpo, não nos pés, daí o deslocamento.
+ */
+const BOSS_MODEL_HEIGHT = 1.998
+const BOSS_MODEL_BASE = -0.998
 /** Duração da apresentação do chefe, em segundos. */
 const CUTSCENE_SECONDS = 4.2
 const PHASE_ONE_EMBER = 2.6
@@ -70,7 +81,33 @@ export async function createGame(options: {
   })
   const bossEmber = bossSkin[1] as MeshStandardNodeMaterial
   boss.attachRig(bossRig)
-  if (bossRig.hand) attachToHand(bossRig.hand, buildGreatsword(1))
+
+  // Vharen definitivo. O esqueleto CC0 continua dirigindo a animação, agora
+  // invisível, e a pose é copiada pro modelo gerado a cada frame.
+  //
+  // Ainda atrás de `?vharen` na URL: o retarget entre o esqueleto Rigify da
+  // biblioteca e o humanoide do modelo gerado está deformando a malha, e um
+  // chefe quebrado é pior que um mannequim que funciona. Com o parâmetro
+  // desligado o jogo usa o provisório, que é o comportamento normal.
+  let bossFinal: RetargetedSkin | null = null
+  const querVharenFinal = new URLSearchParams(window.location.search).has('vharen')
+  if (!querVharenFinal && bossRig.hand) {
+    attachToHand(bossRig.hand, buildGreatsword(1))
+  }
+  try {
+    if (!querVharenFinal) throw new Error('desligado')
+    const bossGltf = await assets.model(BOSS_MODEL)
+    const bossScale = boss.height / BOSS_MODEL_HEIGHT
+    bossFinal = createRetargetedSkin(bossGltf, bossRig.root, { scale: bossScale })
+    bossFinal.root.position.y = -BOSS_MODEL_BASE * bossScale
+    bossRig.root.visible = false
+    boss.object.add(bossFinal.root)
+  } catch (error) {
+    if (querVharenFinal) {
+      console.warn('[game] modelo final do Vharen não carregou, usando o provisório', error)
+      if (bossRig.hand) attachToHand(bossRig.hand, buildGreatsword(1))
+    }
+  }
 
   player.enemy = boss
 
@@ -210,6 +247,8 @@ export async function createGame(options: {
     update(dt) {
       player.updateAnimation(dt)
       boss.updateAnimation(dt)
+      // Depois do mixer, senão a pose copiada é a do frame anterior.
+      bossFinal?.update()
 
       // Telegrafia: a brasa carrega junto com a preparação do golpe e estoura
       // no impacto. É o aviso que a animação sozinha não dá.
