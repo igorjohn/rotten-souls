@@ -14,12 +14,22 @@ export interface CharacterOptions {
 
 const GRAVITY = -26
 /**
- * Empurrao curto pra baixo a cada frame no chao, so pra manter contato. Nao usa
- * gravidade cheia de proposito: com dt grande o passo para baixo ficava fundo
- * demais, a capsula penetrava o colisor e o controlador do Rapier passava a
- * zerar todo o movimento horizontal.
+ * Velocidade constante pra baixo enquanto esta no chao, so pra manter contato.
+ * Nao usa gravidade cheia de proposito: acumulada, ela afundava a capsula no
+ * colisor e o controlador do Rapier passava a zerar todo o movimento horizontal.
+ *
+ * O valor e baixo por um segundo motivo, descoberto depois: o autostep do
+ * Rapier so entra quando o deslocamento pedido e mais horizontal que vertical.
+ * Andando a 2,6 m/s o passo horizontal e 4,3 cm por tick de 1/60. Isto aqui era
+ * 5 cm fixos por tick, entao o vetor apontava 49 graus pra baixo e a escadaria
+ * virava parede: so a esquiva subia, porque e rapida o bastante pra inverter a
+ * proporcao. Como velocidade escalada por dt, da 1 cm por tick e o autostep
+ * volta a funcionar em qualquer velocidade. Medido em scripts/check-escada.mjs.
+ *
+ * Descer nao depende disto: quem cola o personagem no chao na descida e o
+ * enableSnapToGround do controlador.
  */
-const GROUND_STICK = 0.05
+const GROUND_STICK_SPEED = 0.6
 /** Empurrao pra cima de um frame, usado so pra sair de uma penetracao. */
 const UNSTICK_LIFT = 0.04
 const UP = new Vector3(0, 1, 0)
@@ -118,7 +128,7 @@ export class Character {
       this.velocity.y = 0
       // Se o frame anterior detectou a capsula presa, um unico frame de
       // empurrao pra cima tira ela de dentro do colisor. Fora isso, contato.
-      const vertical = this.stuck ? UNSTICK_LIFT : -GROUND_STICK
+      const vertical = this.stuck ? UNSTICK_LIFT : -GROUND_STICK_SPEED * dt
       this.desired.set(this.velocity.x * dt, vertical, this.velocity.z * dt)
     } else {
       this.velocity.y += GRAVITY * dt
