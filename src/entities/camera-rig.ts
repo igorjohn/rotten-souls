@@ -44,8 +44,14 @@ export class CameraRig {
     return out.set(Math.sin(this.yaw), 0, Math.cos(this.yaw))
   }
 
+  /**
+   * Direita da câmera, que é `frente cruzado com cima`. Com `yaw` em zero a
+   * câmera olha pra +Z e a direita é -X, não +X: num sistema destro com Y pra
+   * cima, Z cruzado com Y dá -X. O sinal estava trocado e deixava A e D
+   * invertidos desde o M1.
+   */
   getRight(out: Vector3): Vector3 {
-    return out.set(Math.cos(this.yaw), 0, -Math.sin(this.yaw))
+    return out.set(-Math.cos(this.yaw), 0, Math.sin(this.yaw))
   }
 
   addLook(delta: Vector2): void {

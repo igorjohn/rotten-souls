@@ -85,3 +85,7 @@ Uma linha por decisão, com data e motivo. Inclui troca de asset e corte de esco
 - **Chefe definitivo gerado e riggado, com retarget.** Depende da decisão de gastar os 47,5 créditos. O Vharen atual é o mannequim CC0 escalado com material de brasa, que funciona mas não é o cavaleiro do concept.
 - **Texturas em KTX2.** O codificador do KTX-Software não está instalado nesta máquina e não há formula do Homebrew pra ele. O ganho seria de VRAM, não de download, e o download já está em 9,54 MB contra teto de 60.
 - **Bloqueio e aparo.** Cortados lá no M1 pela escolha de montante sem escudo. A defesa é rolar.
+
+## 2026-09-08, correção reportada pelo Igor
+
+- **A e D estavam invertidos desde o M1.** O vetor "direita" da câmera estava com o sinal trocado: `getRight` devolvia `(cos yaw, 0, -sin yaw)`, que é a esquerda. A direita é `frente cruzado com cima`, e num sistema destro com Y pra cima isso dá `(-cos yaw, 0, sin yaw)`. Conferido de três formas: pela álgebra do produto vetorial, medindo o deslocamento com a tecla pressionada, e projetando o vetor na tela pra ver em que metade ele cai. O erro também deslocava a câmera pro ombro errado, então a composição mudou junto.
