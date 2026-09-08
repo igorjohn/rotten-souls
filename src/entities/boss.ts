@@ -34,8 +34,12 @@ const STRIKE_RANGE = 5.2
 const THRUST_RANGE = 9.5
 
 const HIT_STAGGER = 0.32
-/** Quanto dano acumulado ele aguenta antes de cambalear. */
-const POISE = 62
+/**
+ * Quanto dano acumulado ele aguenta antes de cambalear. Baixo o bastante pra um
+ * pesado sozinho, ou dois leves, interromperem: sem isso ele atravessa os
+ * golpes sem reagir e o jogador acha que ele está se defendendo.
+ */
+const POISE = 34
 
 const CLIPS = {
   idle: 'Idle_Loop',
@@ -133,6 +137,25 @@ export class Boss implements Damageable {
   /** Invencível só durante o rugido de virada de fase. */
   get invulnerable(): boolean {
     return this.state === 'roar'
+  }
+
+  /**
+   * Quanto o golpe atual está carregado, de 0 a 1, chegando em 1 no instante
+   * em que ele passa a machucar e caindo depois.
+   *
+   * É a telegrafia: quem desenha o chefe usa isso pra acender a brasa durante
+   * a preparação. Sem um aviso que não seja a própria animação, um chefe grande
+   * com golpe largo vira sorte, e sorte não é o contrato do gênero.
+   */
+  get telegraph(): number {
+    if (this.state === 'roar') return 1
+    const run = this.attack
+    if (!run || !this.rig) return 0
+    const progress = this.rig.progress()
+    const start = run.def.windowStart
+    if (progress < start) return progress / Math.max(0.0001, start)
+    const tail = Math.max(0.0001, 1 - start)
+    return Math.max(0, 1 - (progress - start) / tail)
   }
 
   get healthRatio(): number {

@@ -209,6 +209,10 @@ export class Input {
       if (!pressed && this.prevGamepadButtons[index]) this.release(map[index])
       this.prevGamepadButtons[index] = pressed
     }
-    this.running = (pad.buttons[6]?.value ?? 0) > 0.4 || this.keys.has('ShiftLeft')
+    // Nao sobrescreve o teclado: correr e verdade se qualquer um dos dois pede.
+    // Antes isso apagava o Shift direito sempre que havia um gamepad conectado.
+    const gatilho = (pad.buttons[6]?.value ?? 0) > 0.4
+    this.running =
+      gatilho || this.keys.has('ShiftLeft') || this.keys.has('ShiftRight')
   }
 }

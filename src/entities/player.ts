@@ -15,22 +15,27 @@ const RADIUS = 0.36
 const WALK_SPEED = 2.6
 const RUN_SPEED = 5.6
 const STRAFE_WALK = 2.9
-const STRAFE_RUN = 4.9
 
 const ACCEL_GROUND = 26
 const TURN_FREE = 14
 const TURN_LOCKED = 16
 
-const DODGE_TIME = 0.62
-const DODGE_PEAK = 11.5
-const DODGE_COST = 25
+/**
+ * O clipe `Roll` dura 1,46 s. Antes o estado terminava em 0,62 s enquanto a
+ * animação ainda estava no meio, e o personagem dava um solavanco de volta pro
+ * idle. Agora o clipe roda na velocidade exata pra caber no estado.
+ */
+const DODGE_TIME = 0.52
+const ROLL_CLIP_SECONDS = 1.46
+const DODGE_PEAK = 13.5
+const DODGE_COST = 22
 /**
  * Janela de invencibilidade dentro do rolamento de 0,62 s. São 0,44 s de
  * imunidade, generoso de propósito: o chefe é grande, os golpes são largos, e
  * sem isso a esquiva vira sorte em vez de leitura.
  */
-const IFRAME_START = 0.05
-const IFRAME_END = 0.49
+const IFRAME_START = 0.04
+const IFRAME_END = 0.42
 
 const RUN_DRAIN = 12
 const STAMINA_REGEN = 26
@@ -98,8 +103,8 @@ export class Player implements Damageable {
       layer: LAYER.player,
       mask: LAYER.enemy | LAYER.hitbox,
       position: PLAYER_SPAWN,
-      maxHealth: 100,
-      maxStamina: 100,
+      maxHealth: 130,
+      maxStamina: 110,
     })
     this.character.snapTo(SPAWN_FACING)
     this.character.object.name = 'player'
@@ -320,16 +325,22 @@ export class Player implements Damageable {
       if (this.character.stamina <= 0) this.staminaSpent = true
     }
 
+    // Correr com a mira travada solta o deslize e vira o corpo pra direcao do
+    // movimento, como em Souls. Sem isso, correr travado e so deslizar de lado
+    // um pouco mais rapido, que nao parece correr.
+    const sprinting = running && !this.staminaSpent
+    const strafing = this.lockTarget !== null && !sprinting
+
     let speed: number
     if (!moving) speed = 0
-    else if (this.lockTarget) speed = running ? STRAFE_RUN : STRAFE_WALK
+    else if (strafing) speed = STRAFE_WALK
     else speed = running ? RUN_SPEED : WALK_SPEED
 
     const blend = Math.min(1, ACCEL_GROUND * dt)
     this.velocity.x += (this.wish.x * speed - this.velocity.x) * blend
     this.velocity.z += (this.wish.z * speed - this.velocity.z) * blend
 
-    this.faceTarget(dt, moving)
+    this.faceTarget(dt, moving, strafing)
 
     if (!moving) this.setState('idle', CLIPS.idle)
     else if (running) this.setState('run', CLIPS.run)
@@ -349,10 +360,10 @@ export class Player implements Damageable {
     }
   }
 
-  private faceTarget(dt: number, moving: boolean): void {
-    if (this.lockTarget) {
-      const dx = this.lockTarget.position.x - this.character.object.position.x
-      const dz = this.lockTarget.position.z - this.character.object.position.z
+  private faceTarget(dt: number, moving: boolean, strafing: boolean): void {
+    if (strafing) {
+      const dx = this.lockTarget!.position.x - this.character.object.position.x
+      const dz = this.lockTarget!.position.z - this.character.object.position.z
       this.character.turnTo(Math.atan2(dx, dz), dt, TURN_LOCKED)
     } else if (moving) {
       this.character.turnTo(Math.atan2(this.wish.x, this.wish.z), dt, TURN_FREE)
@@ -379,7 +390,12 @@ export class Player implements Damageable {
       )
     }
     this.character.snapTo(Math.atan2(this.dodgeDirection.x, this.dodgeDirection.z))
-    this.rig?.play(CLIPS.dodge, { once: true, fade: 0.08, restart: true, speed: 1 / DODGE_TIME })
+    this.rig?.play(CLIPS.dodge, {
+      once: true,
+      fade: 0.05,
+      restart: true,
+      speed: ROLL_CLIP_SECONDS / DODGE_TIME,
+    })
   }
 
   private updateDodge(dt: number): void {

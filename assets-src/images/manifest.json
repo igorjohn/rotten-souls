@@ -59,6 +59,16 @@
       "creditos": 2,
       "jobId": "5a9087e2-a3c0-4d49-9b66-5f8fcabe698d",
       "createdAt": "2026-09-08"
+    },
+    {
+      "file": "icone-braseiro.png",
+      "prompt": "Game HUD icon, single object centred on a fully transparent background: a small iron brazier bowl with a low orange flame, seen from the front, dark forged iron with rust, warm ember light inside the bowl. Flat vector-like game icon style, thick readable silhouette, no text, no border, no drop shadow.",
+      "provider": "openrouter",
+      "model": "google/gemini-3.1-flash-image",
+      "generationId": "gen-1788904940-xvr4AVIumCZEwPMRQ4Xi",
+      "aspectRatio": "1:1",
+      "resolution": "2K",
+      "createdAt": "2026-09-08T22:02:31.217Z"
     }
   ],
   "nota": "Os prompts completos estao em scripts/prompts/concept-01.json. Saldo Higgsfield: 68 antes, 56 depois."

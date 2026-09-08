@@ -19,6 +19,18 @@ interface Buses {
 
 const MASTER_LEVEL = 0.85
 
+/**
+ * `?mute` na URL abre o jogo sem som. Serve pra abrir uma segunda aba de teste
+ * sem tocar por cima de quem está jogando na primeira.
+ */
+function mutedByUrl(): boolean {
+  try {
+    return new URLSearchParams(window.location.search).has('mute')
+  } catch {
+    return false
+  }
+}
+
 export class Audio {
   private context: AudioContext | null = null
   private buses: Buses | null = null
@@ -39,7 +51,7 @@ export class Audio {
     const context = new Ctor()
     this.context = context
     const master = context.createGain()
-    master.gain.value = MASTER_LEVEL
+    master.gain.value = mutedByUrl() ? 0 : MASTER_LEVEL
     master.connect(context.destination)
 
     this.buses = {

@@ -18,6 +18,8 @@ const MODEL = 'assets/models/personagem-cc0.glb'
 const CUTSCENE_SECONDS = 4.2
 const PHASE_ONE_EMBER = 2.6
 const PHASE_TWO_EMBER = 5.4
+/** Quanto a brasa sobe no auge da preparação de um golpe. */
+const TELEGRAPH_EMBER = 5
 /** Altura do modelo CC0 em metros, medida no glTF. */
 const MODEL_HEIGHT = 1.829
 
@@ -107,9 +109,6 @@ export async function createGame(options: {
     hud.showHint('a segunda vigília começa', 3)
     audio.roar()
     cameraRig.punch(1.1)
-    // A brasa acende de vez na segunda fase. É a leitura mais barata e mais
-    // clara de que a luta mudou: dá pra ver do outro lado da arena.
-    bossEmber.emissiveIntensity = PHASE_TWO_EMBER
   }
 
   boss.onDeath = () => {
@@ -175,7 +174,6 @@ export async function createGame(options: {
   function respawn(): void {
     player.respawn()
     boss.reset()
-    bossEmber.emissiveIntensity = PHASE_ONE_EMBER
     state.phase = 'exploring'
     state.cutscene = 0
     input.enabled = true
@@ -212,6 +210,11 @@ export async function createGame(options: {
     update(dt) {
       player.updateAnimation(dt)
       boss.updateAnimation(dt)
+
+      // Telegrafia: a brasa carrega junto com a preparação do golpe e estoura
+      // no impacto. É o aviso que a animação sozinha não dá.
+      const base = boss.phase === 1 ? PHASE_TWO_EMBER : PHASE_ONE_EMBER
+      bossEmber.emissiveIntensity = base + boss.telegraph * TELEGRAPH_EMBER
 
       hud.setHealth(player.healthRatio)
       hud.setStamina(player.staminaRatio, player.exhausted)

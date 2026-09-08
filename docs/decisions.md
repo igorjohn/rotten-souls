@@ -100,3 +100,38 @@ Reclamação: "eu dou hit no boss mas eu perco vida muito fácil".
 - **Folga depois de apanhar de 0,30 s para 0,55 s,** pra emenda de golpes não matar em cadeia.
 - **Intervalo entre golpes** de 1,5-2,4 s para 1,9-2,9 s na primeira fase, e de 0,75-1,35 s para 1,15-1,85 s na segunda. Chance de emenda na segunda fase de 55% para 38%. É o que cria a janela de punição.
 - **Avanço da estocada de 7,5 para 5,4 m/s e alcance de 4,6 para 4,2 m.** Ela alcançava de longe demais pra ser lida a tempo.
+
+## 2026-09-08, segunda rodada de jogabilidade
+
+Reclamações do Igor jogando: o chefe parece se defender, a vida some fácil
+demais, não existe correr, e a esquiva e o ataque parecem peso morto.
+
+Medi as durações dos clipes no glTF antes de mexer em qualquer coisa:
+`Sword_Attack` 1,50 s, `Roll` 1,46 s, `Sprint_Loop` 0,67 s.
+
+- **Golpe leve de 1,07 s para 0,63 s** (velocidade 1,4 para 2,4) e **pesado de
+  1,92 s para 1,11 s** (0,78 para 1,35). Um ataque leve de Souls fica na casa
+  dos 0,6 s; 1,07 s é peso morto, e a reclamação estava certa.
+- **A esquiva passou a caber no clipe.** O estado durava 0,62 s enquanto a
+  animação de 1,46 s rodava a 1,61x, ou seja terminava no meio e o personagem
+  dava um solavanco de volta pro idle. Agora o estado dura 0,52 s e o clipe roda
+  na velocidade exata pra caber, 2,81x. Alcance do rolamento subiu de 11,5 pra
+  13,5 m/s de pico pra compensar o tempo menor.
+- **Poise do chefe de 62 para 34.** Ele atravessava os golpes sem reagir, o que
+  se lê como "ele está se defendendo". Agora um pesado sozinho, ou dois leves,
+  interrompem.
+- **Vida do jogador de 100 para 130 e estamina de 100 para 110.** Junto com o
+  dano do chefe mais baixo, o corte alto passou de 5 pra 6 golpes até matar.
+- **Alcance e avanço dos golpes do jogador maiores** (leve de 1,9 pra 2,1 m,
+  pesado de 2,3 pra 2,5 m), porque com o golpe mais rápido dá menos tempo de
+  se posicionar. Recuperação depois do golpe menor: 0,12 pra 0,08 no leve e
+  0,30 pra 0,18 no pesado.
+- **Correr com a mira travada agora corre de verdade.** Existia desde o M1, mas
+  com lock-on o personagem só deslizava de lado um pouco mais rápido, que não
+  parece correr. Agora segurar Shift solta o deslize e vira o corpo pra direção
+  do movimento, como em Souls.
+- **O gamepad não sobrescreve mais o Shift do teclado.** `readGamepad` atribuía
+  `running` direto, então com um controle conectado o Shift direito era ignorado.
+- **Telegrafia por brasa.** A brasa do Vharen carrega durante a preparação do
+  golpe e estoura no impacto. Sem um aviso que não seja a própria animação, um
+  chefe grande com golpe largo vira sorte.
