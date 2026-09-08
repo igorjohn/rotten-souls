@@ -238,3 +238,27 @@ Feita com um `AnalyserNode` ligado nos barramentos, medindo RMS do sinal real:
 | Com a música do chefe | 0,111 |
 | Passo por cima da música | 0,115 |
 | Depois de parar a música | 0,089 |
+
+## 2026-09-08 — Depois do Vharen assado e da armadura do jogador
+
+Mesmo painel de preview, mesma máquina, medido com `window.perf()` sobre doze
+amostras e com nenhuma outra página WebGPU aberta.
+
+| | Antes | Depois |
+|---|---|---|
+| Frame time, mediana | 5,21 ms | 14,64 ms |
+| Frame time, pior | — | 21,07 ms |
+| fps | 182 | 62 |
+| Triângulos na cena | 71 566 | 159 032 |
+| Chamadas de desenho | 88 | 84 |
+| Escala de resolução escolhida pelo governador | 0,76 | 0,68 |
+
+Triângulos e chamadas de desenho continuam folgados contra o teto da seção 4
+(1,5 milhão e 300). O custo não é contagem de geometria: o que entrou foram
+duas malhas esfoladas pesadas, o Vharen com 56 580 triângulos e o jogador com
+14 219, ambas passando também pelo mapa de sombra da lua. O governador já
+derrubou a resolução e mesmo assim segura só 62 fps, o que significa que o
+número de 1080p nativo da definição de pronto ainda não está provado.
+
+Falta isolar quanto disso é a esfola, quanto é a passagem de sombra e quanto é
+o pós-processo na resolução maior. Não otimizar antes de medir isso.
