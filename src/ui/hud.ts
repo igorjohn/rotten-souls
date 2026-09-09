@@ -78,6 +78,7 @@ export class Hud {
   private readonly loadingBar = el('.loading-bar i')
   private readonly loadingStatus = el('#loading-status')
   private readonly startGate = el('#start-gate')
+  private readonly threshold = el('#threshold')
   private hintTimer = 0
 
   show(): void {
@@ -167,11 +168,38 @@ export class Hud {
     if (status) this.loadingStatus.textContent = status
   }
 
+  /**
+   * O carregamento entrega na soleira, não no menu.
+   *
+   * A soleira existe por uma razão técnica com cara de decisão de arte: o
+   * navegador não deixa tocar áudio antes do primeiro gesto do usuário, e o
+   * único clique que o menu oferecia era o botão que saía dele. Resultado, em
+   * domínio novo o menu era mudo. Com a soleira, o primeiro clique libera o som
+   * e revela o menu, então a logo emerge com a trilha já tocando por baixo.
+   */
   finishLoading(): void {
     this.loadingBar.style.width = '100%'
     this.loading.classList.add('gone')
     window.setTimeout(() => this.loading.classList.add('hidden'), 900)
-    this.startGate.classList.remove('hidden')
+    this.threshold.classList.remove('hidden')
+  }
+
+  /**
+   * Liga a soleira. `fn` roda dentro do gesto do clique, que é o que o
+   * navegador exige pra liberar o áudio.
+   */
+  onThreshold(fn: () => void): void {
+    const abrir = () => {
+      if (this.threshold.classList.contains('hidden')) return
+      fn()
+      this.threshold.classList.add('gone')
+      window.setTimeout(() => this.threshold.classList.add('hidden'), 700)
+      this.startGate.classList.remove('hidden')
+    }
+    this.threshold.addEventListener('click', abrir)
+    window.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.code === 'Space') abrir()
+    })
   }
 
   onStart(fn: () => void): void {

@@ -250,6 +250,7 @@ canvas#game {
 /* ---------- Carregamento e portão inicial ---------- */
 
 #loading,
+#threshold,
 #start-gate {
   position: fixed;
   inset: 0;
@@ -270,6 +271,7 @@ canvas#game {
    folga, o movimento mostraria a borda da imagem. E `will-change` promove a
    camada, então o desfoque é calculado uma vez e a animação só a desloca, em
    vez de refazer o borrão a cada quadro. */
+#threshold::before,
 #start-gate::before {
   content: "";
   position: absolute;
@@ -292,6 +294,7 @@ canvas#game {
   }
 }
 
+#threshold::after,
 #start-gate::after {
   content: "";
   position: absolute;
@@ -300,6 +303,7 @@ canvas#game {
 }
 
 #start-gate .start-inner,
+#threshold .threshold-call,
 #loading .loading-inner {
   position: relative;
   z-index: 1;
@@ -319,6 +323,7 @@ canvas#game {
 }
 
 #loading.gone,
+#threshold.gone,
 #start-gate.gone {
   opacity: 0;
   pointer-events: none;
@@ -694,6 +699,57 @@ canvas#game {
   #pause-menu .controls li,
   #pause-menu #pause-resume,
   #pause-menu .pause-foot {
+    animation: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   A soleira.
+
+   Uma tela antes do menu, com o mesmo fundo e nada além de uma linha. Existe
+   por um motivo técnico que virou decisão de arte: o navegador não toca áudio
+   antes do primeiro gesto do usuário, e o único clique que o menu oferecia era
+   o botão que saía dele, então em domínio novo o menu era mudo. Aqui o primeiro
+   clique libera o som e revela o menu, e a logo passa a emergir com a trilha já
+   tocando por baixo, que é melhor do que era antes mesmo sem o problema.
+
+   O fundo é o mesmo do menu, então a troca entre as duas telas não se vê: só o
+   conteúdo por cima muda.
+   --------------------------------------------------------------------------- */
+
+#threshold {
+  z-index: 62;
+  cursor: pointer;
+}
+
+.threshold-call {
+  margin: 0;
+  font-family: Cinzel, Georgia, serif;
+  font-size: clamp(12px, 1.5vw, 15px);
+  letter-spacing: 0.34em;
+  text-transform: lowercase;
+  color: #9d9483;
+  text-shadow: 0 0 24px rgba(0, 0, 0, 0.9);
+  user-select: none;
+  animation:
+    menu-emergir 1400ms ease-out 300ms both,
+    soleira-respiro 3600ms ease-in-out 1700ms infinite;
+}
+
+/* Respiro, não piscada. A linha varia pouco e devagar, o suficiente pra o olho
+   entender que ela está esperando alguma coisa. */
+@keyframes soleira-respiro {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .threshold-call {
     animation: none;
   }
 }

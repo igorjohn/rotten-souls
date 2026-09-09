@@ -34,7 +34,6 @@ async function boot(): Promise<void> {
   // carregamento e do título, que é justamente onde ela faz falta.
   const menuMusic = new MenuMusic()
   if (mudo) menuMusic.mute()
-  else menuMusic.start()
 
   hud.setLoading(0.05, 'acordando a GPU')
   const ctx = await createRenderContext(canvas)
@@ -253,6 +252,11 @@ async function boot(): Promise<void> {
 
   hud.setLoading(1, 'pronto')
   hud.finishLoading()
+  // A trilha nasce aqui, dentro do gesto que abre a soleira. É o único lugar em
+  // que o navegador garante que ela pode tocar.
+  hud.onThreshold(() => {
+    if (!mudo) menuMusic.start()
+  })
   hud.onStart(() => {
     // O contexto de áudio só pode nascer dentro de um gesto do usuário.
     menuMusic.fadeOut()
