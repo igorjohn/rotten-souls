@@ -7,6 +7,7 @@ import { Physics } from './core/physics'
 import { StatsPanel } from './debug/stats'
 import { exposeScreenshotHelper, flushScreenshot } from './debug/screenshot'
 import { Hud, setRendererBadge } from './ui/hud'
+import { PauseMenu } from './ui/pause'
 import { Audio } from './core/audio'
 import { MenuMusic } from './core/menu-music'
 import { buildArena } from './world/arena'
@@ -92,11 +93,31 @@ async function boot(): Promise<void> {
   const loop = new Loop()
   const screenTarget = new Vector3()
 
+  /**
+   * Pausa. Corta input, simulação, animação e câmera, e deixa o estágio de
+   * render seguir: a cena fica congelada na tela em vez de virar tela preta, o
+   * que é o ponto de pausar num jogo com esta iluminação.
+   *
+   * Não uso `loop.timeScale = 0` porque o delta zerado também chegaria no painel
+   * de perf e no governador de resolução, que dividem por ele.
+   */
+  const pause = new PauseMenu(
+    () => {
+      input.enabled = false
+      input.clearBuffer()
+      input.exitPointerLock()
+    },
+    () => {
+      input.enabled = true
+      input.requestPointerLock()
+    },
+  )
+
   if (import.meta.env.DEV) {
     exposeScreenshotHelper()
     ;(window as unknown as { game: unknown }).game = {
       ctx, input, player, boss: game.boss, jogo: game, rig, arena, lighting,
-      physics, postfx, fogControls, brazierFx, audio, menuMusic,
+      physics, postfx, fogControls, brazierFx, audio, menuMusic, pause,
     }
     ;(window as unknown as { perf: () => unknown }).perf = () => ({
       ...stats.snapshot,
@@ -109,6 +130,7 @@ async function boot(): Promise<void> {
   }
 
   loop.on('input', (dt) => {
+    if (pause.open) return
     input.update(dt)
     if (input.consume('lockOn')) {
       player.toggleLock([game.boss.object])
@@ -117,6 +139,7 @@ async function boot(): Promise<void> {
   })
 
   loop.on('simulate', (dt) => {
+    if (pause.open) return
     // Jogador e chefe simulam dentro do passo fixo, junto com a física.
     // Ver Physics.step: corpo cinemático só anda quando o mundo dá um passo.
     physics.step(dt, (fixed) => game.fixedUpdate(fixed))
@@ -125,6 +148,7 @@ async function boot(): Promise<void> {
   })
 
   loop.on('animate', (dt, elapsed) => {
+    if (pause.open) return
     flickerBraziers(lighting.braziers, elapsed)
     game.update(dt)
     hud.update(dt)
@@ -133,6 +157,7 @@ async function boot(): Promise<void> {
   })
 
   loop.on('camera', (dt) => {
+    if (pause.open) return
     rig.update(dt, player.object, player.height, player.lockTarget)
     // Ouvinte na câmera: é o que faz o braseiro e o portão virem da direção
     // certa quando a câmera gira em volta do jogador.
@@ -237,6 +262,7 @@ async function boot(): Promise<void> {
     input.enabled = true
     input.requestPointerLock()
     hud.show()
+    pause.arm()
     hud.showAreaTitle()
     hud.showHint('desça a escadaria', 5)
   })

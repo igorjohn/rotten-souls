@@ -516,3 +516,165 @@ canvas#game {
     animation: none;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Menu de pausa.
+
+   Mesma gramática da entrada do jogo, em ritmo mais curto: um menu de pausa que
+   demora dois segundos e meio pra abrir vira estorvo. O véu escuro entra por
+   transição, e não instantâneo como o painel do título, porque aqui é justamente
+   a cena congelada por trás que precisa escurecer à vista.
+   --------------------------------------------------------------------------- */
+
+#pause-menu {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(ellipse at 50% 45%, rgba(20, 12, 6, 0.55), transparent 70%),
+    rgba(5, 7, 12, 0.82);
+  backdrop-filter: blur(3px);
+  animation: menu-surgir 280ms ease both;
+}
+
+#pause-menu.saindo {
+  animation: menu-surgir 240ms ease reverse both;
+}
+
+.pause-inner {
+  text-align: center;
+  max-width: 640px;
+  padding: 0 24px;
+}
+
+.pause-title {
+  font-family: Cinzel, Georgia, serif;
+  font-weight: 600;
+  font-size: clamp(26px, 3.4vw, 40px);
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: #ddd0b4;
+  margin: 0 0 10px;
+  text-shadow: 0 0 30px rgba(255, 138, 42, 0.16);
+}
+
+.pause-sub {
+  color: #8d8474;
+  font-style: italic;
+  font-size: 15px;
+  letter-spacing: 0.04em;
+  margin: 0 0 4px;
+}
+
+#pause-resume {
+  font-family: Cinzel, Georgia, serif;
+  font-size: 14px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #e6d9bd;
+  background: transparent;
+  border: 1px solid rgba(222, 200, 160, 0.4);
+  padding: 13px 42px;
+  margin-top: 34px;
+  cursor: pointer;
+  transition:
+    background 260ms ease,
+    border-color 260ms ease,
+    letter-spacing 260ms ease;
+}
+
+#pause-resume:hover,
+#pause-resume:focus-visible {
+  background: rgba(255, 138, 42, 0.09);
+  border-color: rgba(255, 178, 106, 0.75);
+  letter-spacing: 0.28em;
+  outline: none;
+}
+
+.pause-foot {
+  margin: 18px 0 0;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: #6f6959;
+}
+
+.pause-foot kbd {
+  font-family: inherit;
+  font-size: 11px;
+  border: 1px solid rgba(160, 150, 130, 0.35);
+  padding: 1px 6px;
+  color: #a49b87;
+}
+
+/* Escalonamento da entrada, na mesma ordem de leitura do menu inicial. */
+#pause-menu:not(.hidden):not(.saindo) .pause-title {
+  animation: menu-emergir 520ms ease-out 120ms both;
+}
+
+#pause-menu:not(.hidden):not(.saindo) .pause-sub {
+  animation: menu-emergir 520ms ease-out 220ms both;
+}
+
+#pause-menu:not(.hidden):not(.saindo) .controls li {
+  animation: menu-emergir 460ms ease-out both;
+}
+
+#pause-menu:not(.hidden):not(.saindo) .controls li:nth-child(1) { animation-delay: 320ms; }
+#pause-menu:not(.hidden):not(.saindo) .controls li:nth-child(2) { animation-delay: 375ms; }
+#pause-menu:not(.hidden):not(.saindo) .controls li:nth-child(3) { animation-delay: 430ms; }
+#pause-menu:not(.hidden):not(.saindo) .controls li:nth-child(4) { animation-delay: 485ms; }
+#pause-menu:not(.hidden):not(.saindo) .controls li:nth-child(5) { animation-delay: 540ms; }
+#pause-menu:not(.hidden):not(.saindo) .controls li:nth-child(6) { animation-delay: 595ms; }
+
+#pause-menu:not(.hidden):not(.saindo) #pause-resume {
+  animation: menu-emergir 520ms ease-out 660ms both;
+}
+
+#pause-menu:not(.hidden):not(.saindo) .pause-foot {
+  animation: menu-emergir 520ms ease-out 780ms both;
+}
+
+/* A lista de comandos no menu de pausa não precisa do respiro que ela tem na
+   tela de título, onde é a última coisa da página. */
+#pause-menu .controls {
+  margin-top: 30px;
+}
+
+/* Dica fixa no canto. Mora dentro do HUD, então aparece e some junto com ele e
+   não intercepta clique. */
+#pause-hint {
+  position: absolute;
+  /* Acima do selo do renderizador, que mora no mesmo canto com 8 px de fundo.
+     Sem essa folga os dois se encavalam e viram borrão. */
+  right: 22px;
+  bottom: 34px;
+  font-family: Cinzel, Georgia, serif;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #6b6455;
+  text-shadow: 0 2px 8px #000;
+}
+
+#pause-hint kbd {
+  font-family: inherit;
+  font-size: 11px;
+  border: 1px solid rgba(160, 150, 130, 0.3);
+  padding: 1px 7px;
+  margin-right: 7px;
+  color: #9a9180;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #pause-menu,
+  #pause-menu.saindo,
+  #pause-menu .pause-title,
+  #pause-menu .pause-sub,
+  #pause-menu .controls li,
+  #pause-menu #pause-resume,
+  #pause-menu .pause-foot {
+    animation: none;
+  }
+}

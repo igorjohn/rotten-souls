@@ -31,6 +31,24 @@
 
       <div id="lockon" class="hidden"></div>
       <div id="hint"></div>
+      <div id="pause-hint"><kbd>Enter</kbd> menu</div>
+    </div>
+
+    <div id="pause-menu" class="hidden" role="dialog" aria-modal="true" aria-label="Jogo pausado">
+      <div class="pause-inner">
+        <h2 class="pause-title">Pausa</h2>
+        <p class="pause-sub">O Pátio das Cinzas espera.</p>
+        <ul class="controls">
+          <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> mover</li>
+          <li><kbd>Shift</kbd> correr</li>
+          <li><kbd>Espaço</kbd> esquiva</li>
+          <li><kbd>Mouse esq.</kbd> ataque leve</li>
+          <li><kbd>Mouse dir.</kbd> ataque pesado</li>
+          <li><kbd>Q</kbd> ou <kbd>Mouse meio</kbd> lock-on</li>
+        </ul>
+        <button id="pause-resume" type="button">Voltar ao jogo</button>
+        <p class="pause-foot"><kbd>Enter</kbd> ou <kbd>Esc</kbd> também volta</p>
+      </div>
     </div>
 
     <div id="overlay-death" class="fullscreen-message hidden">
