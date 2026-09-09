@@ -1,12 +1,21 @@
-# Rotten Souls
+<p align="center">
+  <img src="public/assets/ui/logo.webp" alt="Rotten Souls" width="420" />
+</p>
 
 Vertical slice de um Souls-like que roda no navegador, em WebGPU. Uma arena
 circular em ruínas à noite, um chefe de quatro metros e meio, e o ciclo
 completo: entrar, lutar, morrer, voltar, vencer.
 
-![Pátio das Cinzas](docs/screenshots/m3-arena.png)
-
 A arena chama **Pátio das Cinzas**. O chefe chama **Vharen, Vigília das Ruínas**.
+
+## Preview
+
+![Vharen no Pátio das Cinzas](docs/screenshots/readme-preview.webp)
+
+O chefe esperando no centro da arena, com a brasa da armadura acesa. A brasa é
+telegrafia: ela carrega junto com a preparação do golpe e estoura no impacto.
+
+![A arcada do Pátio das Cinzas](docs/screenshots/readme-arena.webp)
 
 ## Rodar
 
@@ -39,8 +48,9 @@ pnpm typecheck # tsc sem emitir
 Gamepad também funciona: analógico esquerdo move, direito olha, A esquiva,
 X leve, Y pesado, R3 trava a mira, LT corre.
 
-Parâmetros de URL úteis em desenvolvimento: `?mute` abre sem som, `?size=LxA`
-força a resolução do buffer, `?vharen` liga o modelo gerado do chefe.
+Parâmetros de URL úteis em desenvolvimento: `?mudo` abre sem som nenhum,
+`?size=LxA` força a resolução do buffer, `?mannequim` troca o Vharen definitivo
+pelo provisório e `?assada` devolve a armadura antiga do jogador.
 
 ## Stack
 
@@ -55,9 +65,10 @@ gótica de doze vãos com arco ogival vazado, os vãos arruinados, os contrafort
 o piso em anéis e a escadaria, sai de um kit paramétrico em `src/world/kit`.
 Nenhum modelo de arquitetura foi importado.
 
-O som também: não há um único arquivo de áudio no projeto. Vento, passo, corte,
-impacto, rugido e a música do chefe são sintetizados na Web Audio API, o que sai
-mais leve que qualquer amostra comprimida e responde a parâmetro.
+O som é quase todo sintetizado na Web Audio API: vento, passo, impacto, rugido e
+a música do chefe nascem de osciladores e ruído filtrado, o que sai mais leve que
+qualquer amostra comprimida e responde a parâmetro. As exceções são o banco de
+cortes de espada e a trilha do menu, que são arquivos.
 
 As texturas são CC0 do [ambientCG](https://ambientcg.com), o céu noturno é do
 [Poly Haven](https://polyhaven.com), e os personagens provisórios vêm da
@@ -70,10 +81,10 @@ Medido a cada marco em [`docs/perf.md`](docs/perf.md).
 
 | Item | Medido | Limite |
 |---|---|---|
-| Frame time | 7,7 ms | 16 ms |
-| Draw calls | 75 | 300 |
-| Triângulos | 70 mil | 1,5 milhão |
-| Download | 9,8 MB | 60 MB |
+| Frame time | 14,6 ms | 16 ms |
+| Draw calls | 84 | 300 |
+| Triângulos | 159 mil | 1,5 milhão |
+| Download | 18 MB | 60 MB |
 | Luzes com sombra em tempo real | 1 | 1 |
 
 ## Estrutura
@@ -99,10 +110,11 @@ docs/         perf, decisões, direção de arte, screenshots
 
 ## O que ainda não está pronto
 
-- O modelo definitivo do chefe existe e está bonito parado, mas as animações da
-  biblioteca CC0 ainda deformam o esqueleto dele. Fica atrás de `?vharen` e o
-  padrão usa o provisório, que anima certo.
-- Texturas em KTX2, que reduziriam a memória de vídeo.
+- O frame time subiu de 5,2 ms para 14,6 ms quando as malhas esfoladas do chefe
+  e do jogador entraram. Triângulo e chamada de desenho continuam folgados, então
+  o custo está na esfola e na passagem de sombra, e falta isolar qual dos dois.
+- Texturas em KTX2, que reduziriam a memória de vídeo. Falta o encoder na
+  máquina, então as texturas de material saem em WebP.
 - Bloqueio e aparo, cortados quando a arma virou montante sem escudo.
 
 ## Licença

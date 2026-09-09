@@ -14,3 +14,7 @@ assets-src/**/*.wav
 # Fonte bruta de modelo: 22 MB de .blend e intermediarios do retarget.
 # Regeravel por scripts/blender/retarget_vharen.py, entao fica fora do repo.
 assets-src/models/
+
+# Audio bruto: fonte pesada e nao comprimida, o que entra no jogo esta em
+# public/assets/audio.
+assets-src/audio/

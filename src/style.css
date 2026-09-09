@@ -418,3 +418,101 @@ canvas#game {
   pointer-events: none;
   user-select: none;
 }
+
+/* ---------------------------------------------------------------------------
+   Entrada do menu.
+
+   Os elementos não aparecem juntos: a logo emerge primeiro e sozinha, e o resto
+   sobe depois dela, em ordem de leitura. É o mesmo truque de tela de título de
+   Souls, e serve pra dar tempo de a trilha se estabelecer antes de o olho ter
+   onde clicar.
+
+   As animações disparam quando o `#start-gate` perde a classe `hidden`, porque
+   `display: none` segura o relógio da animação. Por isso não há transição aqui,
+   e sim keyframes com `both`: o elemento já nasce invisível.
+   --------------------------------------------------------------------------- */
+
+@keyframes menu-surgir {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes menu-emergir {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* A logo não sobe, ela se afasta: começa maior e assenta, o que lê como algo
+   emergindo da névoa em vez de um elemento de interface deslizando. */
+@keyframes menu-assentar {
+  from {
+    opacity: 0;
+    transform: scale(1.07);
+    filter: drop-shadow(0 0 46px rgba(139, 30, 30, 0.35)) blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+    filter: drop-shadow(0 0 46px rgba(139, 30, 30, 0.35)) blur(0);
+  }
+}
+
+/* O painel NÃO é animado, e isso é regra: ele carrega a arte de capa e a
+   vinheta nos pseudo-elementos, então animar a opacidade dele deixaria a cena
+   3D aparecendo por trás enquanto o fundo entra. O fundo tem que estar cheio no
+   primeiro quadro; quem entra devagar é só o conteúdo por cima dele. */
+
+#start-gate:not(.hidden) .logo {
+  animation: menu-assentar 1900ms cubic-bezier(0.16, 0.84, 0.3, 1) 220ms both;
+}
+
+#start-gate:not(.hidden) .start-sub {
+  animation: menu-emergir 1300ms ease-out 1100ms both;
+}
+
+#start-gate:not(.hidden) #start-button {
+  animation: menu-emergir 1300ms ease-out 1600ms both;
+}
+
+/* A lista de controles entra item a item, da esquerda pra direita. */
+#start-gate:not(.hidden) .controls li {
+  animation: menu-emergir 1000ms ease-out both;
+}
+
+#start-gate:not(.hidden) .controls li:nth-child(1) { animation-delay: 2050ms; }
+#start-gate:not(.hidden) .controls li:nth-child(2) { animation-delay: 2140ms; }
+#start-gate:not(.hidden) .controls li:nth-child(3) { animation-delay: 2230ms; }
+#start-gate:not(.hidden) .controls li:nth-child(4) { animation-delay: 2320ms; }
+#start-gate:not(.hidden) .controls li:nth-child(5) { animation-delay: 2410ms; }
+#start-gate:not(.hidden) .controls li:nth-child(6) { animation-delay: 2500ms; }
+
+/* A tela de carregamento também não pisca na cara de quem abre. */
+#loading .loading-inner {
+  animation: menu-surgir 1100ms ease both;
+}
+
+/* Saída: o `gone` já cuida da opacidade do painel inteiro pela transição que
+   existe desde o M0. Aqui só se garante que a animação de entrada não segure a
+   opacidade em 1 e cancele o desaparecimento. */
+#start-gate.gone .logo,
+#start-gate.gone .start-sub,
+#start-gate.gone #start-button,
+#start-gate.gone .controls li {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #start-gate:not(.hidden) .logo,
+  #start-gate:not(.hidden) .start-sub,
+  #start-gate:not(.hidden) #start-button,
+  #start-gate:not(.hidden) .controls li,
+  #loading .loading-inner {
+    animation: none;
+  }
+}

@@ -11,7 +11,22 @@ export const BOSS_NAME = 'Vharen, Vigília das Ruínas'
 
 /** 2,5 vezes o jogador, como manda a seção 3 do briefing. */
 const HEIGHT = 4.62
-const RADIUS = 1.05
+/**
+ * Raio da cápsula de colisão. Era 1,05 m, e isso não é o corpo do Vharen: medi
+ * os ossos em mundo e o ponto mais largo dele é o pé, a 0,74 m do centro, com
+ * o ombro a 0,50 m. Com 1,05 o jogador parava a 1,46 m do centro do chefe, ou
+ * seja 72 cm de ar antes de encostar nele, e o contato virava parede invisível
+ * no meio do nada. Em 0,85 ele para a 1,26 m, encosta no corpo e ainda não
+ * consegue ficar em pé entre as pernas.
+ */
+const RADIUS = 0.85
+/**
+ * Raio do alvo de golpe, separado do raio de colisão de propósito: forma de
+ * colisão e caixa de dano são coisas diferentes, e amarrar uma na outra fazia
+ * o alcance do combate mudar junto com o ajuste da cápsula. Este valor é o que
+ * o combate já tinha, o antigo raio mais 0,35.
+ */
+const HIT_RADIUS = 1.4
 /**
  * Calibrado pra luta durar. Golpe leve tira 17 e pesado 34, então dá por volta
  * de 18 a 20 golpes bem colocados, contando os dois. Mais que isso vira
@@ -127,7 +142,7 @@ export class Boss implements Damageable {
   }
 
   get hitRadius(): number {
-    return RADIUS + 0.35
+    return HIT_RADIUS
   }
 
   get alive(): boolean {
