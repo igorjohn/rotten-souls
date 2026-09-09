@@ -78,15 +78,20 @@ export async function createGame(options: {
   player.attachRig(playerRig)
   if (playerRig.hand) attachToHand(playerRig.hand, buildGreatsword(1))
 
-  // Comparação de armadura, pra o Igor escolher olhando. Por padrão vale a
-  // assada no GLB, que carrega oclusão e desgaste de aresta no próprio mapa,
-  // coisa que textura ladrilhada não sabe fazer. Com `?armadura` na URL entra a
-  // biblioteca por peça de `armor.ts`: aço de placa ladrilhado no corpo, mais o
-  // elmo como geometria, que é justamente o que falta na assada.
+  // Armadura escolhida pelo Igor olhando as duas lado a lado: a biblioteca por
+  // peça de `armor.ts`, com aço de placa ladrilhado no corpo e o elmo como
+  // geometria. O elmo é o que decide, porque contra a névoa o que se lê é
+  // silhueta, e cabeça descoberta lê como mannequim. O aço também é metálico
+  // de verdade, então pega o braseiro e a lua, coisa que a assada não fazia.
   //
-  // A capa não é trocada porque ela já vem costurada na malha do GLB, e somar a
+  // O que a assada tinha de melhor era oclusão nas dobras e desgaste de aresta
+  // no próprio mapa, que ladrilho não sabe fazer. Fica em `?assada` na URL pra
+  // comparação, e o caminho de juntar as duas é assar uma passagem de oclusão
+  // por cima da biblioteca.
+  //
+  // A capa não é trocada porque já vem costurada na malha do GLB, e somar a
   // capa da biblioteca daria duas.
-  if (new URLSearchParams(window.location.search).has('armadura')) {
+  if (!new URLSearchParams(window.location.search).has('assada')) {
     await dressPlayerWithLibrary(options.renderer, playerRig)
   }
 
@@ -319,8 +324,8 @@ export async function createGame(options: {
 }
 
 /**
- * Veste o jogador com a biblioteca por peça em vez da armadura assada. Fica
- * atrás de `?armadura` porque é comparação, não decisão tomada.
+ * Veste o jogador com a biblioteca por peça. `?assada` na URL pula isto e
+ * devolve a armadura assada no GLB, que serve de comparação.
  *
  * O elmo entra preso ao osso da cabeça e compensa a escala do osso, do mesmo
  * jeito que `attachToHand` faz com o montante: o rig é escalado pra altura do
