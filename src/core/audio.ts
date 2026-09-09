@@ -59,15 +59,27 @@ const BOSS_STRIDE = 3.8
 const BRAZIER_RANGE = 26
 
 /**
- * `?mute` na URL abre o jogo sem som. Serve pra abrir uma segunda aba de teste
- * sem tocar por cima de quem está jogando na primeira.
+ * `?mudo` na URL abre o jogo sem som. Serve pra abrir uma segunda aba de teste
+ * sem tocar por cima de quem está trabalhando na máquina. `?mute` continua
+ * valendo porque era o nome que este módulo usava antes de o `main.ts` adotar
+ * `mudo`, e um parâmetro de silêncio que falha calado é o pior tipo de bug.
  */
 function mutedByUrl(): boolean {
   try {
-    return new URLSearchParams(window.location.search).has('mute')
+    const params = new URLSearchParams(window.location.search)
+    return params.has('mudo') || params.has('mute')
   } catch {
     return false
   }
+}
+
+/**
+ * Contexto offline não tem alto-falante: ele existe pra medir RMS mais rápido
+ * que tempo real. Zerar o mestre nele não silencia nada, só devolveria zero pra
+ * régua, então a bateria de medição roda com o ganho de verdade.
+ */
+function isOffline(context: BaseAudioContext): boolean {
+  return typeof OfflineAudioContext !== 'undefined' && context instanceof OfflineAudioContext
 }
 
 export class Audio {
@@ -115,7 +127,7 @@ export class Audio {
     const context = new Ctor()
     this.context = context
     const master = context.createGain()
-    master.gain.value = mutedByUrl() ? 0 : MASTER_LEVEL
+    master.gain.value = mutedByUrl() && !isOffline(context) ? 0 : MASTER_LEVEL
     master.connect(context.destination)
 
     this.buses = {
@@ -338,6 +350,52 @@ export class Audio {
     strike.connect(strikeFilter).connect(strikeGain).connect(buses.sfx)
     strike.start(now, Math.random() * 2)
     strike.stop(now + 0.16)
+  }
+
+  /**
+   * Abrir e fechar o menu de pausa. É o som mais apagado do jogo de propósito:
+   * interface não pode competir com combate. Um sopro curto de ruído grave com
+   * uma nota abafada por baixo, descendo ao abrir (o mundo se recolhe) e
+   * subindo ao fechar. Sem transiente duro, senão a orelha lê como golpe e o
+   * jogador procura de onde veio.
+   *
+   * O nível é calibrado por medida, não por gosto: fica perto de um décimo do
+   * RMS de um impacto, na mesma faixa do estalo de braseiro distante.
+   */
+  pauseToggle(opening: boolean): void {
+    const { context, buses, noise } = this
+    if (!context || !buses || !noise) return
+    const now = context.currentTime
+
+    const de = opening ? 190 : 124
+    const para = opening ? 124 : 190
+
+    const tom = context.createOscillator()
+    tom.type = 'sine'
+    tom.frequency.setValueAtTime(de, now)
+    tom.frequency.exponentialRampToValueAtTime(para, now + 0.17)
+    const tomGain = context.createGain()
+    tomGain.gain.setValueAtTime(0, now)
+    tomGain.gain.linearRampToValueAtTime(0.075, now + 0.03)
+    tomGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.3)
+    tom.connect(tomGain).connect(buses.sfx)
+    tom.start(now)
+    tom.stop(now + 0.34)
+
+    const sopro = context.createBufferSource()
+    sopro.buffer = noise
+    sopro.playbackRate.value = 0.7
+    const filtro = context.createBiquadFilter()
+    filtro.type = 'lowpass'
+    filtro.frequency.setValueAtTime(opening ? 1100 : 520, now)
+    filtro.frequency.exponentialRampToValueAtTime(opening ? 480 : 1200, now + 0.2)
+    const soproGain = context.createGain()
+    soproGain.gain.setValueAtTime(0, now)
+    soproGain.gain.linearRampToValueAtTime(0.055, now + 0.035)
+    soproGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.26)
+    sopro.connect(filtro).connect(soproGain).connect(buses.sfx)
+    sopro.start(now, Math.random() * 2)
+    sopro.stop(now + 0.3)
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -789,6 +847,12 @@ export class Audio {
   /**
    * Travar e soltar o alvo. Duas notas curtas de metal: sobe ao travar, desce
    * ao soltar. É informação, não música, então tem que ser bem curto.
+   *
+   * O nível saiu de 0,09 pra 0,27 por medida, não por gosto. Filtrando o
+   * rendido numa banda de 1100 Hz Q 2,2, que é onde as duas notas moram, o aviso
+   * media 0,014 de pico de RMS contra 0,042 do vento na mesma banda: nove
+   * decibéis DEBAIXO do ambiente, ou seja, a informação mais importante da
+   * câmera não chegava. Com 0,27 ele fica um decibel acima do vento.
    */
   lockOn(locked: boolean): void {
     const { context, buses } = this
@@ -803,7 +867,7 @@ export class Audio {
       osc.frequency.value = frequency
       const gain = context.createGain()
       gain.gain.setValueAtTime(0, inicio)
-      gain.gain.linearRampToValueAtTime(0.09, inicio + 0.004)
+      gain.gain.linearRampToValueAtTime(0.27, inicio + 0.004)
       gain.gain.exponentialRampToValueAtTime(0.0001, inicio + 0.13)
       osc.connect(gain).connect(buses.sfx)
       osc.start(inicio)
@@ -814,6 +878,12 @@ export class Audio {
   /**
    * Fôlego no fim da estamina. Só na borda de subida: enquanto o jogador segue
    * exausto o som não repete, senão vira arfada de desenho animado.
+   *
+   * Mesmo problema do lock-on, e pior: é ruído contra ruído. Na banda de 520 Hz
+   * Q 1,6 ele media 0,012 de pico de RMS contra 0,051 do vento, treze decibéis
+   * abaixo. O ganho foi de 0,2 pra 0,87, que o põe na altura do vento; quem faz
+   * ele ser lido não é o nível e sim o gesto, ataque rápido e varredura do
+   * filtro pra baixo, que o vento não tem.
    */
   setExhausted(spent: boolean): void {
     if (spent === this.exhausted) return
@@ -836,7 +906,7 @@ export class Audio {
 
     const gain = context.createGain()
     gain.gain.setValueAtTime(0, now)
-    gain.gain.linearRampToValueAtTime(0.2, now + 0.09)
+    gain.gain.linearRampToValueAtTime(0.87, now + 0.09)
     gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.55)
 
     source.connect(filter).connect(gain).connect(buses.sfx)
@@ -931,18 +1001,23 @@ export class Audio {
   death(): void {
     this.stopBossMusic()
     if (this.playCue('morte', 0.9)) return
-    this.synthToll(58, 3.4, 0.3)
+    this.synthToll(58, 3.4, 0.2)
   }
 
   /** Tela de vitória. A música já foi parada por quem chamou. */
   victory(): void {
     if (this.playCue('vitoria', 0.9)) return
-    this.synthToll(87, 4.2, 0.26)
+    this.synthToll(87, 4.2, 0.155)
   }
 
   /**
    * Reserva das duas telas: uma badalada grave com parciais não harmônicos e
    * cauda longa. Grave demais pra ser sino, longa demais pra ser impacto.
+   *
+   * Os níveis foram baixados pra bater com os clipes que ela substitui, medidos
+   * lado a lado em pico de RMS de janela de 50 ms: a morte dava 0,111 contra
+   * 0,074 do gerado, e a vitória 0,091 contra 0,054. Quem caísse na reserva
+   * levava as duas telas quatro decibéis mais altas que o previsto.
    */
   private synthToll(base: number, duration: number, level: number): void {
     const { context, buses } = this

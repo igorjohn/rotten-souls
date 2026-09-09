@@ -103,11 +103,13 @@ async function boot(): Promise<void> {
    */
   const pause = new PauseMenu(
     () => {
+      audio.pauseToggle(true)
       input.enabled = false
       input.clearBuffer()
       input.exitPointerLock()
     },
     () => {
+      audio.pauseToggle(false)
       input.enabled = true
       input.requestPointerLock()
     },

@@ -348,3 +348,65 @@ normal em 1024, rugosidade e oclusão em 512, porque são sinais suaves e o
 relevo fino já vem do normal. A biblioteca inteira pesa 5,8 MB, contra 8,4 MB
 antes desse corte. O `optimize-assets.sh` não alcança esta pasta, porque o
 padrão dele é de um nível só (`textures/*/*.jpg`) e aqui há dois.
+
+## 2026-09-09 — Bateria de medição de áudio em contexto offline, sem alto-falante
+
+Todo evento de som foi medido renderizando num `OfflineAudioContext`, que roda
+mais rápido que tempo real e nunca chega no alto-falante. Métricas por evento:
+RMS de banda larga, pico de RMS em janela de 50 ms, pico absoluto, duração
+acima de −40 dB do pico, centroide espectral e a frequência que divide a
+energia ao meio. Nenhum som foi tocado na máquina do Igor.
+
+A única concessão no `audio.ts` é o `isOffline`: contexto offline não tem saída
+de som, então zerar o barramento mestre nele devolveria zero pra régua em vez
+de silenciar alguma coisa. Fora isso o `?mudo` agora silencia o mestre de fato,
+porque a função lia `?mute` e o `main.ts` passou a usar `?mudo` faz tempo. Um
+parâmetro de silêncio que falha calado é o pior tipo de bug que este projeto
+pode ter.
+
+## 2026-09-09 — Lock-on e fôlego estavam abaixo do vento e ninguém tinha medido
+
+Comparar RMS de banda larga esconde mascaramento, que é seletivo em frequência.
+Filtrando cada evento na banda onde ele mora e comparando com o vento na mesma
+banda: o lock-on media 0,014 contra 0,042 do ambiente (9,5 dB ABAIXO) e o
+fôlego 0,012 contra 0,051 (12,8 dB abaixo). Os dois eram informação que não
+chegava. Ganhos corrigidos por medida, de 0,09 pra 0,27 e de 0,2 pra 0,87, que
+os põe a −0,7 dB e +0,5 dB do vento. Os picos absolutos ficaram em 0,197 e
+0,353, ainda abaixo do impacto de dano cheio, que é 0,439.
+
+As duas reservas sintetizadas das telas de morte e vitória batiam 4 dB mais
+alto que os clipes do Lyria que elas substituem. Níveis do `synthToll` baixados
+de 0,3 pra 0,2 e de 0,26 pra 0,155: agora as duas ficam a 0,1 dB do clipe.
+
+## 2026-09-09 — Passo do chefe provado diferente do passo do jogador, com número
+
+Não bastava afirmar. Medido, com oito repetições por evento:
+
+| | jogador andando | jogador correndo | chefe |
+|---|---|---|---|
+| pico de RMS (50 ms) | 0,040 | 0,050 | 0,119 |
+| frequência mediana | 120 Hz | 117 Hz | 70 Hz |
+| duração acima de −40 dB | 0,101 s | 0,100 s | 0,347 s |
+| energia abaixo de 200 Hz | 87 % | 80 % | 95 % |
+| cadência medida em jogo | 0,582 s | 0,367 s | 1,10 s |
+
+O passo do chefe é 0,78 oitava mais grave, dura 3,4 vezes mais, bate 11,2 dB
+acima do vento na banda dele contra 0 dB do jogador andando, e sai a um terço
+da cadência de quem corre. A cadência do chefe foi medida alimentando o caminho
+real dele, 864 amostras de 10,15 s de luta, na lógica de passada.
+
+## 2026-09-09 — Som discreto no menu de pausa
+
+`pauseToggle(abrindo)` no barramento de efeito: sopro curto de ruído grave com
+uma nota abafada por baixo, descendo ao abrir e subindo ao fechar. Fica a −2 dB
+do vento na banda dele e a um sexto do pico de RMS de um impacto, que é a
+altura certa pra interface: percebe-se, não interrompe. Ligado no `main.ts`
+dentro dos dois callbacks que o `PauseMenu` já tinha.
+
+## 2026-09-09 — Nenhum crédito gasto nesta rodada de áudio
+
+Saldo do OpenRouter antes e depois: US$ 0,955217 de uso acumulado, diferença
+zero. O que faltava era medição e calibragem, não material novo. O único clipe
+que valeria comprar seria um rugido gravado no lugar do sintetizado, e o Lyria
+é modelo de música: pedir vocalização de criatura a ele devolve música, não
+rugido. Os 2,5 MB de áudio já entregues seguem cabendo folgado no orçamento.
