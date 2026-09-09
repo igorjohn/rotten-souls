@@ -132,7 +132,7 @@ export class Audio {
 
     this.buses = {
       sfx: makeBus(context, master, 0.9),
-      ambient: makeBus(context, master, 0.42),
+      ambient: makeBus(context, master, 0.168),
       music: makeBus(context, master, 0.5),
     }
     this.noise = makeNoiseBuffer(context, 2.5)

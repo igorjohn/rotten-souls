@@ -105,6 +105,9 @@ docs/         perf, decisões, direção de arte, screenshots
   motivo. Inclui os becos sem saída, que costumam ser mais úteis que os acertos.
 - [`docs/perf.md`](docs/perf.md) tem os números de cada marco e como foram medidos.
 - [`docs/art-direction.md`](docs/art-direction.md) tem as regras do look.
+- [`docs/como-fazer-um-jogo-assim.md`](docs/como-fazer-um-jogo-assim.md) é a
+  receita completa, com o fluxo, as ferramentas, os custos medidos e as
+  armadilhas, para quem quiser reproduzir isto em outro jogo.
 - [`docs/narrativa.md`](docs/narrativa.md) tem a ficção: o que é uma vigília,
   quem é Vharen, por que o jogador volta e o que a vitória custa.
 - `CLAUDE.md` é o briefing original do projeto.

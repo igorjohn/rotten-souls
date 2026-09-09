@@ -40,7 +40,13 @@ const IFRAME_END = 0.42
 const RUN_DRAIN = 12
 const STAMINA_REGEN = 26
 const REGEN_DELAY = 0.55
-const SPENT_DELAY = 1.2
+/**
+ * Pausa depois de zerar o folego. Era 1,2 s, e a barra ficava parada no vazio
+ * tempo demais: quem zerou ja esta sendo punido pelo bloqueio de corrida, que
+ * so sai quando a barra passa de 30%. O segundo castigo em cima do primeiro era
+ * espera morta, nao tensao.
+ */
+const SPENT_DELAY = 0.2
 
 /** Quantos leves seguidos cabem numa sequência antes de precisar respirar. */
 const MAX_CHAIN = 3
