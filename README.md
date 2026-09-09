@@ -6,7 +6,8 @@ completo: entrar, lutar, morrer, voltar, vencer.
 
 A arena chama **Pátio das Cinzas**. O chefe chama **Vharen, Vigília das Ruínas**.
 
-**Joga aqui:** [rotten-souls.igorsjohn.workers.dev](https://rotten-souls.igorsjohn.workers.dev)
+> [!NOTE]
+> **Clique aqui para jogar:** [rotten-souls.igorsjohn.workers.dev](https://rotten-souls.igorsjohn.workers.dev)
 
 ## Preview
 
