@@ -18,6 +18,20 @@ const FAIXA = 'assets/audio/menu/tema-menu.m4a'
 const VOLUME = 0.42
 /** Tempo pra sumir quando o jogo começa, em segundos. */
 const SAIDA = 1.4
+/**
+ * Se a trilha acabou de começar quando o jogo começa, ela some devagar em vez
+ * de sumir na hora.
+ *
+ * O motivo é uma armadilha do próprio desenho do menu. Quando o navegador
+ * bloqueia o áudio antes do primeiro gesto, a trilha fica armada esperando um
+ * clique, e o único clique que existe no menu é o botão que sai do menu. Então
+ * o mesmo gesto que libera o som dispara a saída dele, e a música morre com
+ * meio segundo de vida. Nesse caso ela atravessa a descida da escadaria e some
+ * ao longo dela, que é transição, não bug.
+ */
+const SAIDA_RECEM_COMECADA = 7
+/** Abaixo disto a faixa conta como recém começada, em segundos. */
+const LIMIAR_RECEM = 5
 
 export class MenuMusic {
   private readonly element: HTMLAudioElement
@@ -67,10 +81,11 @@ export class MenuMusic {
   fadeOut(): void {
     this.disarm()
     if (this.element.paused || this.fading) return
+    const saida = this.element.currentTime < LIMIAR_RECEM ? SAIDA_RECEM_COMECADA : SAIDA
     const inicio = performance.now()
     const volumeInicial = this.element.volume
     this.fading = window.setInterval(() => {
-      const t = (performance.now() - inicio) / (SAIDA * 1000)
+      const t = (performance.now() - inicio) / (saida * 1000)
       if (t >= 1) {
         this.element.pause()
         this.element.currentTime = 0
