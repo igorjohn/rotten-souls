@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/readme/logo.png" alt="Rotten Souls" width="420" />
+  <img src="docs/readme/arte.jpg" alt="Rotten Souls" width="620" />
 </p>
 
 Vertical slice de um Souls-like que roda no navegador, em WebGPU. Uma arena
@@ -14,8 +14,6 @@ A arena chama **Pátio das Cinzas**. O chefe chama **Vharen, Vigília das Ruína
 
 O chefe esperando no centro da arena, com a brasa da armadura acesa. A brasa é
 telegrafia: ela carrega junto com a preparação do golpe e estoura no impacto.
-
-![A arcada do Pátio das Cinzas](docs/readme/arena.jpg)
 
 ## Rodar
 
