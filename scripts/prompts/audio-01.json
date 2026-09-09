@@ -1,0 +1,20 @@
+[
+  {
+    "out": "portao-stinger-01",
+    "model": "clip",
+    "seed": 23,
+    "prompt": "Horror stinger for crossing a fog gate into a boss arena. Starts almost silent with cold air and a distant metallic groan, then a slow rising cluster of detuned strings and low male voices swelling over six seconds into a violent dissonant hit with a huge sub bass drop and a long dark reverb tail that decays into nothing. Dread, suspense, the feeling of a door closing behind you. No melody, no drum kit, no beat, orchestral horror texture only."
+  },
+  {
+    "out": "morte-01",
+    "model": "clip",
+    "seed": 31,
+    "prompt": "Death sting for a soulslike game over screen. A single slow mournful cello note falling, a low church organ pedal underneath, a sparse funeral bell struck once and left to ring, cold stone reverb. Defeated, heavy, final. Very slow, sparse, no percussion, no beat, no melody beyond the falling note. Fades to silence."
+  },
+  {
+    "out": "vitoria-01",
+    "model": "clip",
+    "seed": 37,
+    "prompt": "Victory sting for a soulslike game after a boss is slain. A solemn low choir resolving from a minor cluster to an open fifth, a distant deep bell, warm strings swelling and then receding, cathedral reverb. Bittersweet, exhausted, reverent, not triumphant, not heroic fanfare. No drums, no beat, no brass fanfare. Slow, ends in a long fading chord."
+  }
+]

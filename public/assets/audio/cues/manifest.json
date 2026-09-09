@@ -1,0 +1,23 @@
+{
+  "fonte": "google/lyria-3-clip-preview via OpenRouter",
+  "cues": {
+    "portao-stinger": {
+      "arquivo": "portao-stinger.mp3",
+      "loop": false,
+      "origem": "portao-stinger-01.mp3",
+      "nota": "travessia do portão de névoa, subida e pancada"
+    },
+    "morte": {
+      "arquivo": "morte.mp3",
+      "loop": false,
+      "origem": "morte-01.mp3",
+      "nota": "tela de morte"
+    },
+    "vitoria": {
+      "arquivo": "vitoria.mp3",
+      "loop": false,
+      "origem": "vitoria-01.mp3",
+      "nota": "tela de vitória"
+    }
+  }
+}

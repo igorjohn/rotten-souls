@@ -1,15 +1,25 @@
 /**
- * Áudio do jogo. Ambiente, passo, impacto, rugido e música são sintetizados na
- * Web Audio API: som de arena escura é vento, pedra e bordão grave, e isso sai
- * de ruído filtrado com envelope, mais leve que qualquer amostra comprimida e
- * parametrizável (peso do golpe, distância do braseiro) sem uma gravação pra
- * cada caso.
+ * Áudio do jogo.
  *
- * A exceção é o corte no ar. Lâmina passando tem uma textura de atrito que o
- * ruído varrido não imita bem, então o golpe usa um banco de amostras gravadas
- * (`public/assets/audio/swings`, fatiadas por `scripts/trim-swings.py`),
- * sorteadas a cada golpe pra não repetir o mesmo som na sequência. Se o banco
- * não carregar, o corte volta pro sintetizado sem quebrar nada.
+ * Duas fontes, e a divisão é por natureza do som, não por preguiça:
+ *
+ * - **Sintetizado na Web Audio API.** Todo efeito curto: passo, corte, impacto,
+ *   estalo de braseiro, clique de menu, trava do alvo, rugido, música do chefe.
+ *   Som de arena escura é ruído filtrado com envelope, e isso sai mais leve que
+ *   qualquer amostra comprimida e ainda é parametrizável (peso do golpe,
+ *   distância do braseiro) sem uma gravação pra cada caso.
+ * - **Amostra gravada ou gerada.** O que é longo, musical ou textural, que
+ *   oscilador não imita: o stinger da travessia do portão de névoa e as telas
+ *   de morte e vitória vêm do Lyria 3 (`scripts/gen-audio.mjs`, catálogo em
+ *   `public/assets/audio/cues`); o corte no ar vem de um banco gravado
+ *   (`public/assets/audio/swings`).
+ *
+ * A trilha do menu não mora aqui: ela toca antes de existir gesto do usuário,
+ * então é um `<audio>` comum em `src/core/menu-music.ts`.
+ *
+ * A regra vale pros dois bancos: **amostra quando existe, síntese como
+ * reserva, e o jogo nunca quebra se o arquivo faltar.** Tudo que toca amostra
+ * tem um `synth...` equivalente atrás.
  */
 
 export type Bus = 'sfx' | 'ambient' | 'music'
@@ -20,10 +30,33 @@ interface Buses {
   music: GainNode
 }
 
+/** Qualquer coisa com posição no mundo. Evita importar o three aqui. */
+interface Ponto {
+  x: number
+  y: number
+  z: number
+}
+
+/**
+ * O bastante da câmera pra posicionar o ouvinte. A `PerspectiveCamera` do three
+ * satisfaz isso por estrutura, sem o módulo de áudio conhecer o renderizador.
+ */
+export interface ListenerPose {
+  position: Ponto
+  matrixWorld: { elements: ArrayLike<number> }
+}
+
 const MASTER_LEVEL = 0.85
 
 /** Amostras de corte no ar, geradas por `scripts/trim-swings.py`. */
 const SWINGS_DIR = 'assets/audio/swings'
+/** Clipes gerados pelo Lyria e cortados por `scripts/gen-audio.mjs --master`. */
+const CUES_DIR = 'assets/audio/cues'
+
+/** Passada do chefe em metros. Ele tem duas vezes e meia a altura do jogador. */
+const BOSS_STRIDE = 3.8
+/** Além disso o braseiro não vale um estalo, é só custo de nó. */
+const BRAZIER_RANGE = 26
 
 /**
  * `?mute` na URL abre o jogo sem som. Serve pra abrir uma segunda aba de teste
@@ -43,19 +76,41 @@ export class Audio {
   private noise: AudioBuffer | null = null
   private ambientSource: AudioBufferSourceNode | null = null
   private musicNodes: AudioNode[] = []
+  private musicFilters: BiquadFilterNode[] = []
   private musicPulse = 0
+  private musicBeatMs = 2300
   private musicTimer: number | null = null
   private started = false
   /** Banco de cortes no ar. Vazio até o fetch terminar; aí `swing` passa a usá-lo. */
   private swings: AudioBuffer[] = []
   private lastSwing = -1
+  /** Clipes gerados, por nome do cue. Vazio até o fetch terminar. */
+  private cues = new Map<string, AudioBuffer>()
+  private cuesPromise: Promise<void> | null = null
 
-  /** Precisa de um gesto do usuário. Chamado no clique do botão Entrar. */
-  start(): void {
-    if (this.started) return
-    const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
-    if (!Ctor) return
-    this.started = true
+  private braziers: Ponto[] = []
+  private brazierTimer: number | null = null
+  private gateNodes: AudioNode[] = []
+  private listener: Ponto = { x: 0, y: 1.6, z: 0 }
+
+  private bossStrideDistance = 0
+  private bossLast: Ponto | null = null
+  private exhausted = false
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Ciclo de vida
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Cria o contexto e os barramentos. Idempotente, porque tanto o menu quanto o
+   * botão Entrar podem ser o primeiro a chamar.
+   */
+  private ensureContext(): AudioContext | null {
+    if (this.context) return this.context
+    const Ctor =
+      window.AudioContext ??
+      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+    if (!Ctor) return null
 
     const context = new Ctor()
     this.context = context
@@ -68,12 +123,91 @@ export class Audio {
       ambient: makeBus(context, master, 0.42),
       music: makeBus(context, master, 0.5),
     }
-
     this.noise = makeNoiseBuffer(context, 2.5)
+    void this.loadCues(context)
+    return context
+  }
+
+  /** Entrada no jogo. Chamado no clique do botão Entrar, que é o gesto válido. */
+  start(): void {
+    if (this.started) return
+    const context = this.ensureContext()
+    if (!context) return
+    this.started = true
+
     this.startAmbient()
     void this.loadSwings(context)
     void context.resume()
   }
+
+  get enabled(): boolean {
+    return this.context !== null
+  }
+
+  setBusLevel(bus: Bus, level: number): void {
+    if (!this.buses) return
+    this.buses[bus].gain.value = level
+  }
+
+  /**
+   * Posições fixas do mundo que emitem som. Chamado uma vez, na entrada.
+   * O áudio não conhece a arena; recebe pontos e cuida do resto.
+   */
+  placeWorld(mundo: { braziers?: readonly Ponto[]; gate?: Ponto }): void {
+    if (mundo.braziers) {
+      this.braziers = mundo.braziers.map((p) => ({ x: p.x, y: p.y, z: p.z }))
+      this.scheduleCrackle()
+    }
+    if (mundo.gate) this.startGateHum(mundo.gate)
+  }
+
+  /** Uma vez por frame, com a câmera já posicionada. */
+  setListener(pose: ListenerPose): void {
+    const context = this.context
+    if (!context) return
+    const { position, matrixWorld } = pose
+    this.listener = { x: position.x, y: position.y, z: position.z }
+
+    const e = matrixWorld.elements
+    // Frente da câmera é o menos Z da matriz de mundo; cima é o Y.
+    const forward = [-e[8], -e[9], -e[10]] as const
+    const up = [e[4], e[5], e[6]] as const
+
+    const alvo = context.listener as AudioListener & {
+      positionX?: AudioParam
+      forwardX?: AudioParam
+      setPosition?: (x: number, y: number, z: number) => void
+      setOrientation?: (...args: number[]) => void
+    }
+    if (alvo.positionX && alvo.forwardX) {
+      alvo.positionX.value = position.x
+      ;(alvo as unknown as Record<string, AudioParam>).positionY.value = position.y
+      ;(alvo as unknown as Record<string, AudioParam>).positionZ.value = position.z
+      alvo.forwardX.value = forward[0]
+      ;(alvo as unknown as Record<string, AudioParam>).forwardY.value = forward[1]
+      ;(alvo as unknown as Record<string, AudioParam>).forwardZ.value = forward[2]
+      ;(alvo as unknown as Record<string, AudioParam>).upX.value = up[0]
+      ;(alvo as unknown as Record<string, AudioParam>).upY.value = up[1]
+      ;(alvo as unknown as Record<string, AudioParam>).upZ.value = up[2]
+    } else {
+      alvo.setPosition?.(position.x, position.y, position.z)
+      alvo.setOrientation?.(forward[0], forward[1], forward[2], up[0], up[1], up[2])
+    }
+  }
+
+  dispose(): void {
+    this.stopBossMusic()
+    if (this.brazierTimer !== null) window.clearTimeout(this.brazierTimer)
+    this.brazierTimer = null
+    stopAll(this.gateNodes)
+    this.ambientSource?.stop()
+    void this.context?.close()
+    this.context = null
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Bancos de amostra
+  // ─────────────────────────────────────────────────────────────────────────
 
   /**
    * Busca o banco de cortes em segundo plano. Não bloqueia a entrada na arena:
@@ -101,19 +235,119 @@ export class Audio {
     }
   }
 
-  get enabled(): boolean {
-    return this.context !== null
+  /**
+   * Mesmo padrão pros clipes gerados. Um cue que não carregar simplesmente não
+   * entra no mapa, e quem for tocá-lo cai no sintetizado. Cada arquivo é
+   * tolerado sozinho: um 404 no de vitória não derruba o do menu.
+   */
+  private loadCues(context: AudioContext): Promise<void> {
+    if (this.cuesPromise) return this.cuesPromise
+    this.cuesPromise = (async () => {
+      try {
+        const resposta = await fetch(`${CUES_DIR}/manifest.json`)
+        if (!resposta.ok) return
+        const manifesto = (await resposta.json()) as {
+          cues?: Record<string, { arquivo: string }>
+        }
+        const entradas = Object.entries(manifesto.cues ?? {})
+        await Promise.all(
+          entradas.map(async ([nome, cue]) => {
+            try {
+              const dados = await fetch(`${CUES_DIR}/${cue.arquivo}`)
+              if (!dados.ok) return
+              this.cues.set(nome, await context.decodeAudioData(await dados.arrayBuffer()))
+            } catch {
+              // Cue solto que falhou: os outros seguem.
+            }
+          }),
+        )
+      } catch {
+        // Sem catálogo, tudo cai no sintetizado.
+      }
+    })()
+    return this.cuesPromise
   }
 
-  setBusLevel(bus: Bus, level: number): void {
-    if (!this.buses) return
-    this.buses[bus].gain.value = level
+  /** Toca um clipe gerado. Devolve `false` quando ele não está disponível. */
+  private playCue(nome: string, level: number, destino?: AudioNode): boolean {
+    const { context, buses } = this
+    const buffer = this.cues.get(nome)
+    if (!context || !buses || !buffer) return false
+    const source = context.createBufferSource()
+    source.buffer = buffer
+    const gain = context.createGain()
+    gain.gain.value = level
+    source.connect(gain).connect(destino ?? buses.music)
+    source.start(context.currentTime)
+    return true
   }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Interface
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Confirmação do botão Entrar. Uma badalada seca de metal grave com um baque
+   * embaixo, o gesto de bater num portão de ferro, não um bipe de interface.
+   */
+  uiConfirm(): void {
+    const { context, buses, noise } = this
+    if (!context || !buses || !noise) return
+    const now = context.currentTime
+
+    // Parciais não harmônicos: é isso que faz soar metal e não flauta.
+    for (const [frequency, level, decay] of [
+      [196, 0.2, 2.2],
+      [293, 0.12, 1.8],
+      [431, 0.07, 1.4],
+      [622, 0.04, 1],
+    ] as const) {
+      const osc = context.createOscillator()
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(frequency, now)
+      osc.frequency.linearRampToValueAtTime(frequency * 0.995, now + decay)
+      const gain = context.createGain()
+      gain.gain.setValueAtTime(0, now)
+      gain.gain.linearRampToValueAtTime(level, now + 0.004)
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + decay)
+      osc.connect(gain).connect(buses.sfx)
+      osc.start(now)
+      osc.stop(now + decay + 0.05)
+    }
+
+    const thud = context.createOscillator()
+    thud.type = 'sine'
+    thud.frequency.setValueAtTime(96, now)
+    thud.frequency.exponentialRampToValueAtTime(44, now + 0.4)
+    const thudGain = context.createGain()
+    thudGain.gain.setValueAtTime(0.34, now)
+    thudGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.55)
+    thud.connect(thudGain).connect(buses.sfx)
+    thud.start(now)
+    thud.stop(now + 0.6)
+
+    const strike = context.createBufferSource()
+    strike.buffer = noise
+    const strikeFilter = context.createBiquadFilter()
+    strikeFilter.type = 'bandpass'
+    strikeFilter.frequency.value = 2600
+    strikeFilter.Q.value = 0.9
+    const strikeGain = context.createGain()
+    strikeGain.gain.setValueAtTime(0.16, now)
+    strikeGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.12)
+    strike.connect(strikeFilter).connect(strikeGain).connect(buses.sfx)
+    strike.start(now, Math.random() * 2)
+    strike.stop(now + 0.16)
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Ambiente
+  // ─────────────────────────────────────────────────────────────────────────
 
   /** Vento contínuo: ruído rosa passado por um filtro que respira. */
   private startAmbient(): void {
     const { context, buses, noise } = this
-    if (!context || !buses || !noise) return
+    if (!context || !buses || !noise || this.ambientSource) return
 
     const source = context.createBufferSource()
     source.buffer = noise
@@ -143,8 +377,153 @@ export class Audio {
   }
 
   /**
-   * Passo. `weight` de 0 a 1 muda o corpo do som: andar é seco, correr é mais
-   * pesado e um pouco mais grave.
+   * Estalo de braseiro, posicional. Em vez de doze laços de fogo tocando
+   * sempre, um agendador sorteia um braseiro perto do ouvinte e solta um estalo
+   * curto por um `PannerNode` na posição dele. O fogo aparece de onde o fogo
+   * está e o custo é de um punhado de nós por segundo, não de doze fontes vivas.
+   */
+  private scheduleCrackle(): void {
+    if (this.brazierTimer !== null || this.braziers.length === 0) return
+    const tick = () => {
+      this.brazierTimer = null
+      if (!this.context) return
+      this.crackle()
+      this.brazierTimer = window.setTimeout(tick, 150 + Math.random() * 380)
+    }
+    this.brazierTimer = window.setTimeout(tick, 400)
+  }
+
+  private crackle(): void {
+    const { context, buses, noise } = this
+    if (!context || !buses || !noise) return
+
+    // Sorteio com peso pela proximidade: o braseiro do lado estala mais que o
+    // do outro lado da arena, que é o que a orelha espera.
+    const perto: { ponto: Ponto; peso: number }[] = []
+    let total = 0
+    for (const ponto of this.braziers) {
+      const d = Math.hypot(
+        ponto.x - this.listener.x,
+        ponto.y - this.listener.y,
+        ponto.z - this.listener.z,
+      )
+      if (d > BRAZIER_RANGE) continue
+      const peso = 1 / (1 + d * 0.35)
+      perto.push({ ponto, peso })
+      total += peso
+    }
+    if (perto.length === 0) return
+
+    let sorteio = Math.random() * total
+    let escolhido = perto[perto.length - 1].ponto
+    for (const item of perto) {
+      sorteio -= item.peso
+      if (sorteio <= 0) {
+        escolhido = item.ponto
+        break
+      }
+    }
+
+    const now = context.currentTime
+    const panner = makePanner(context, escolhido, 2.5, 30, 1.3)
+    panner.connect(buses.ambient)
+
+    const source = context.createBufferSource()
+    source.buffer = noise
+    source.playbackRate.value = 0.9 + Math.random() * 1.1
+
+    const filter = context.createBiquadFilter()
+    filter.type = 'bandpass'
+    filter.frequency.value = 900 + Math.random() * 1900
+    // Q baixo de propósito. Com Q 5 o estalo media 0,003 de RMS a três metros
+    // do braseiro, contra 0,071 do vento: o filtro estreito jogava fora quase
+    // todo o ruído, que já vem suavizado da fonte. Com Q perto de 2 e ganho
+    // alto ele mede 0,040 a três metros e 0,007 a catorze, que é fogo que se
+    // ouve de perto e some de longe.
+    filter.Q.value = 1.4 + Math.random() * 1.2
+
+    const duration = 0.03 + Math.random() * 0.09
+    const gain = context.createGain()
+    gain.gain.setValueAtTime(0, now)
+    gain.gain.linearRampToValueAtTime(4.5 + Math.random() * 4.5, now + 0.003)
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration)
+
+    source.connect(filter).connect(gain).connect(panner)
+    source.start(now, Math.random() * 2)
+    source.stop(now + duration + 0.05)
+    window.setTimeout(() => panner.disconnect(), (duration + 0.3) * 1000)
+  }
+
+  /**
+   * Zumbido do portão de névoa. Fica preso na posição do portão com queda por
+   * distância, então ele cresce sozinho conforme o jogador se aproxima e é o
+   * aviso de que aquilo ali não é uma parede qualquer.
+   */
+  private startGateHum(gate: Ponto): void {
+    const { context, buses, noise } = this
+    if (!context || !buses || !noise || this.gateNodes.length > 0) return
+    const now = context.currentTime
+
+    const panner = makePanner(context, { x: gate.x, y: gate.y + 2, z: gate.z }, 4, 34, 1.1)
+    panner.connect(buses.ambient)
+    this.gateNodes.push(panner)
+
+    const bed = context.createGain()
+    bed.gain.setValueAtTime(0, now)
+    bed.gain.linearRampToValueAtTime(1, now + 4)
+    bed.connect(panner)
+    this.gateNodes.push(bed)
+
+    // Dois graves quase na mesma nota. O batimento entre eles é o que dá a
+    // sensação de coisa viva parada ali, sem custar nada.
+    for (const [frequency, level] of [
+      [43.5, 0.5],
+      [44.9, 0.4],
+      [87, 0.14],
+    ] as const) {
+      const osc = context.createOscillator()
+      osc.type = 'triangle'
+      osc.frequency.value = frequency
+      const gain = context.createGain()
+      gain.gain.value = level
+      osc.connect(gain).connect(bed)
+      osc.start(now)
+      this.gateNodes.push(osc, gain)
+    }
+
+    const sopro = context.createBufferSource()
+    sopro.buffer = noise
+    sopro.loop = true
+    const band = context.createBiquadFilter()
+    band.type = 'bandpass'
+    band.frequency.value = 620
+    band.Q.value = 1.4
+    const soproGain = context.createGain()
+    soproGain.gain.value = 0.22
+    const lfo = context.createOscillator()
+    lfo.frequency.value = 0.19
+    const lfoGain = context.createGain()
+    lfoGain.gain.value = 0.12
+    lfo.connect(lfoGain).connect(soproGain.gain)
+    lfo.start(now)
+    sopro.connect(band).connect(soproGain).connect(bed)
+    sopro.start(now)
+    this.gateNodes.push(sopro, band, soproGain, lfo, lfoGain)
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Passos
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Passo do jogador. `weight` de 0 a 1 muda o corpo do som: andar é seco,
+   * correr é mais pesado e um pouco mais grave.
+   *
+   * Tem duas camadas. O ruído de banda é o contato da sola; o baque curto por
+   * baixo é o corpo. O baque entrou porque só com a camada de ruído o passo
+   * media 0,012 de RMS contra 0,074 do vento, ou seja, ficava enterrado debaixo
+   * do ambiente. Corpo grave rende RMS sem precisar de pico alto, que é o que
+   * estouraria a mistura quando o passo cai junto com um golpe.
    */
   footstep(weight = 0.5): void {
     const { context, buses, noise } = this
@@ -161,7 +540,7 @@ export class Audio {
     filter.Q.value = 1.1
 
     const gain = context.createGain()
-    const peak = 0.13 + weight * 0.14
+    const peak = 0.22 + weight * 0.2
     gain.gain.setValueAtTime(0, now)
     gain.gain.linearRampToValueAtTime(peak, now + 0.006)
     gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.12 + weight * 0.05)
@@ -169,7 +548,102 @@ export class Audio {
     source.connect(filter).connect(gain).connect(buses.sfx)
     source.start(now, Math.random() * 2)
     source.stop(now + 0.24)
+
+    const body = context.createOscillator()
+    body.type = 'sine'
+    body.frequency.setValueAtTime(168 - weight * 26, now)
+    body.frequency.exponentialRampToValueAtTime(72, now + 0.14)
+    const bodyGain = context.createGain()
+    bodyGain.gain.setValueAtTime(0, now)
+    bodyGain.gain.linearRampToValueAtTime(0.1 + weight * 0.07, now + 0.006)
+    bodyGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.17)
+    body.connect(bodyGain).connect(buses.sfx)
+    body.start(now)
+    body.stop(now + 0.2)
   }
+
+  /**
+   * Passo do chefe, por distância percorrida. O jogo só entrega a posição dele
+   * a cada frame; a passada mora aqui porque é decisão de som, não de combate.
+   */
+  bossStride(position: Ponto): void {
+    if (!this.context) return
+    const last = this.bossLast
+    this.bossLast = { x: position.x, y: position.y, z: position.z }
+    if (!last) return
+
+    const passo = Math.hypot(position.x - last.x, position.z - last.z)
+    // Teleporte de respawn não vira passo.
+    if (passo > 1.5) {
+      this.bossStrideDistance = 0
+      return
+    }
+    this.bossStrideDistance += passo
+    if (this.bossStrideDistance < BOSS_STRIDE) return
+    this.bossStrideDistance = 0
+    this.bossFootstep()
+  }
+
+  /**
+   * Passo do chefe. Não é o passo do jogador com o volume alto: ele tem duas
+   * vezes e meia a altura, então o som desce quase duas oitavas, ganha um baque
+   * de sub que o do jogador não tem e sai com um rabo de poeira que continua
+   * meio segundo depois do impacto. É essa cauda que dá o peso.
+   */
+  bossFootstep(): void {
+    const { context, buses, noise } = this
+    if (!context || !buses || !noise) return
+    const now = context.currentTime
+
+    // Baque: seno que desce até o sub. É o corpo do passo.
+    const thud = context.createOscillator()
+    thud.type = 'sine'
+    thud.frequency.setValueAtTime(88 + Math.random() * 14, now)
+    thud.frequency.exponentialRampToValueAtTime(31, now + 0.36)
+    const thudGain = context.createGain()
+    thudGain.gain.setValueAtTime(0, now)
+    thudGain.gain.linearRampToValueAtTime(0.3, now + 0.008)
+    thudGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.5)
+    thud.connect(thudGain).connect(buses.sfx)
+    thud.start(now)
+    thud.stop(now + 0.55)
+
+    // Pedra: o contato da bota, grave e curto.
+    const stone = context.createBufferSource()
+    stone.buffer = noise
+    stone.playbackRate.value = 0.45 + Math.random() * 0.2
+    const stoneFilter = context.createBiquadFilter()
+    stoneFilter.type = 'bandpass'
+    stoneFilter.frequency.value = 190 + Math.random() * 90
+    stoneFilter.Q.value = 0.9
+    const stoneGain = context.createGain()
+    stoneGain.gain.setValueAtTime(0, now)
+    stoneGain.gain.linearRampToValueAtTime(0.24, now + 0.01)
+    stoneGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.3)
+    stone.connect(stoneFilter).connect(stoneGain).connect(buses.sfx)
+    stone.start(now, Math.random() * 2)
+    stone.stop(now + 0.36)
+
+    // Rabo de poeira: entra depois do impacto e sai devagar.
+    const dust = context.createBufferSource()
+    dust.buffer = noise
+    dust.playbackRate.value = 0.7 + Math.random() * 0.3
+    const dustFilter = context.createBiquadFilter()
+    dustFilter.type = 'lowpass'
+    dustFilter.frequency.setValueAtTime(2200, now)
+    dustFilter.frequency.exponentialRampToValueAtTime(420, now + 0.7)
+    const dustGain = context.createGain()
+    dustGain.gain.setValueAtTime(0, now)
+    dustGain.gain.linearRampToValueAtTime(0.085, now + 0.05)
+    dustGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.72)
+    dust.connect(dustFilter).connect(dustGain).connect(buses.sfx)
+    dust.start(now, Math.random() * 2)
+    dust.stop(now + 0.8)
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Combate
+  // ─────────────────────────────────────────────────────────────────────────
 
   /**
    * Corte no ar. Sorteia uma amostra do banco e nunca repete a anterior, que é
@@ -313,9 +787,201 @@ export class Audio {
   }
 
   /**
+   * Travar e soltar o alvo. Duas notas curtas de metal: sobe ao travar, desce
+   * ao soltar. É informação, não música, então tem que ser bem curto.
+   */
+  lockOn(locked: boolean): void {
+    const { context, buses } = this
+    if (!context || !buses) return
+    const now = context.currentTime
+    const notas = locked ? [880, 1320] : [1320, 740]
+
+    notas.forEach((frequency, i) => {
+      const inicio = now + i * 0.055
+      const osc = context.createOscillator()
+      osc.type = 'triangle'
+      osc.frequency.value = frequency
+      const gain = context.createGain()
+      gain.gain.setValueAtTime(0, inicio)
+      gain.gain.linearRampToValueAtTime(0.09, inicio + 0.004)
+      gain.gain.exponentialRampToValueAtTime(0.0001, inicio + 0.13)
+      osc.connect(gain).connect(buses.sfx)
+      osc.start(inicio)
+      osc.stop(inicio + 0.16)
+    })
+  }
+
+  /**
+   * Fôlego no fim da estamina. Só na borda de subida: enquanto o jogador segue
+   * exausto o som não repete, senão vira arfada de desenho animado.
+   */
+  setExhausted(spent: boolean): void {
+    if (spent === this.exhausted) return
+    this.exhausted = spent
+    if (!spent) return
+
+    const { context, buses, noise } = this
+    if (!context || !buses || !noise) return
+    const now = context.currentTime
+
+    const source = context.createBufferSource()
+    source.buffer = noise
+    source.playbackRate.value = 0.85 + Math.random() * 0.2
+
+    const filter = context.createBiquadFilter()
+    filter.type = 'bandpass'
+    filter.frequency.setValueAtTime(760, now)
+    filter.frequency.exponentialRampToValueAtTime(340, now + 0.5)
+    filter.Q.value = 1.6
+
+    const gain = context.createGain()
+    gain.gain.setValueAtTime(0, now)
+    gain.gain.linearRampToValueAtTime(0.2, now + 0.09)
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.55)
+
+    source.connect(filter).connect(gain).connect(buses.sfx)
+    source.start(now, Math.random() * 2)
+    source.stop(now + 0.6)
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Momentos do ciclo
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Travessia do portão de névoa. É o clipe do Lyria, no barramento de efeito e
+   * não no de música, porque ele tem que passar por cima do bordão do chefe que
+   * começa no mesmo instante.
+   */
+  gateStinger(): void {
+    if (this.playCue('portao-stinger', 0.95, this.buses?.sfx)) return
+    this.synthGateStinger()
+  }
+
+  /**
+   * Reserva do stinger: subida de cluster e uma pancada com queda de sub.
+   * Os ganhos foram baixados pra bater com o clipe: medidos lado a lado, a
+   * reserva dava 0,305 de RMS contra 0,157 do gerado, ou seja, quem caísse na
+   * reserva levaria um susto duas vezes maior que o previsto.
+   */
+  private synthGateStinger(): void {
+    const { context, buses, noise } = this
+    if (!context || !buses || !noise) return
+    const now = context.currentTime
+    const hit = now + 1.6
+
+    // Subida: cluster dissonante que aperta até a pancada.
+    for (const [frequency, detune] of [
+      [110, 0],
+      [116, 12],
+      [147, -9],
+      [220, 7],
+    ] as const) {
+      const osc = context.createOscillator()
+      osc.type = 'sawtooth'
+      osc.frequency.setValueAtTime(frequency * 0.75, now)
+      osc.frequency.exponentialRampToValueAtTime(frequency, hit)
+      osc.detune.value = detune
+      const filter = context.createBiquadFilter()
+      filter.type = 'lowpass'
+      filter.frequency.setValueAtTime(300, now)
+      filter.frequency.exponentialRampToValueAtTime(2400, hit)
+      const gain = context.createGain()
+      gain.gain.setValueAtTime(0.0001, now)
+      gain.gain.exponentialRampToValueAtTime(0.075, hit)
+      gain.gain.exponentialRampToValueAtTime(0.0001, hit + 1.6)
+      osc.connect(filter).connect(gain).connect(buses.sfx)
+      osc.start(now)
+      osc.stop(hit + 1.8)
+    }
+
+    // Pancada e queda de sub.
+    const drop = context.createOscillator()
+    drop.type = 'sine'
+    drop.frequency.setValueAtTime(120, hit)
+    drop.frequency.exponentialRampToValueAtTime(26, hit + 1.5)
+    const dropGain = context.createGain()
+    dropGain.gain.setValueAtTime(0, hit)
+    dropGain.gain.linearRampToValueAtTime(0.3, hit + 0.01)
+    dropGain.gain.exponentialRampToValueAtTime(0.0001, hit + 2)
+    drop.connect(dropGain).connect(buses.sfx)
+    drop.start(hit)
+    drop.stop(hit + 2.1)
+
+    const crash = context.createBufferSource()
+    crash.buffer = noise
+    crash.loop = true
+    const crashFilter = context.createBiquadFilter()
+    crashFilter.type = 'lowpass'
+    crashFilter.frequency.setValueAtTime(5200, hit)
+    crashFilter.frequency.exponentialRampToValueAtTime(360, hit + 2)
+    const crashGain = context.createGain()
+    crashGain.gain.setValueAtTime(0, hit)
+    crashGain.gain.linearRampToValueAtTime(0.17, hit + 0.02)
+    crashGain.gain.exponentialRampToValueAtTime(0.0001, hit + 2.2)
+    crash.connect(crashFilter).connect(crashGain).connect(buses.sfx)
+    crash.start(hit, Math.random() * 2)
+    crash.stop(hit + 2.3)
+  }
+
+  /**
+   * Tela de morte. O bordão do chefe para junto: deixar a música rodando por
+   * baixo da tela de morte tira o peso do silêncio, que é metade do efeito.
+   */
+  death(): void {
+    this.stopBossMusic()
+    if (this.playCue('morte', 0.9)) return
+    this.synthToll(58, 3.4, 0.3)
+  }
+
+  /** Tela de vitória. A música já foi parada por quem chamou. */
+  victory(): void {
+    if (this.playCue('vitoria', 0.9)) return
+    this.synthToll(87, 4.2, 0.26)
+  }
+
+  /**
+   * Reserva das duas telas: uma badalada grave com parciais não harmônicos e
+   * cauda longa. Grave demais pra ser sino, longa demais pra ser impacto.
+   */
+  private synthToll(base: number, duration: number, level: number): void {
+    const { context, buses } = this
+    if (!context || !buses) return
+    const now = context.currentTime
+
+    for (const [ratio, share] of [
+      [1, 1],
+      [1.51, 0.5],
+      [2.02, 0.32],
+      [2.67, 0.18],
+      [4.07, 0.09],
+    ] as const) {
+      const osc = context.createOscillator()
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(base * ratio, now)
+      osc.frequency.linearRampToValueAtTime(base * ratio * 0.985, now + duration)
+      const gain = context.createGain()
+      gain.gain.setValueAtTime(0, now)
+      gain.gain.linearRampToValueAtTime(level * share, now + 0.03)
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + duration * (0.5 + share * 0.5))
+      osc.connect(gain).connect(buses.music)
+      osc.start(now)
+      osc.stop(now + duration + 0.2)
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Música do chefe
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /**
    * Música do chefe: bordão grave em quinta, um coro fingido por osciladores
    * levemente desafinados, e um tambor lento. Nada de melodia, porque melodia
    * cansa em cinco minutos de luta.
+   *
+   * Continua sintetizada de propósito, e não é um clipe do Lyria: ela precisa
+   * responder à virada de fase abrindo o filtro e apertando o tambor, e um
+   * arquivo fixo não faz isso sem cortar e cruzar duas faixas.
    */
   startBossMusic(): void {
     const { context, buses } = this
@@ -327,6 +993,8 @@ export class Audio {
     fade.gain.linearRampToValueAtTime(1, now + 3.5)
     fade.connect(buses.music)
     this.musicNodes.push(fade)
+    this.musicFilters = []
+    this.musicBeatMs = 2300
 
     // Ré e Lá, uma quinta aberta, que é o intervalo mais sombrio e estável.
     for (const [frequency, level, detune] of [
@@ -347,6 +1015,7 @@ export class Audio {
       gain.gain.value = level
       osc.connect(filter).connect(gain).connect(fade)
       osc.start(now)
+      this.musicFilters.push(filter)
       this.musicNodes.push(osc, filter, gain)
     }
 
@@ -356,9 +1025,25 @@ export class Audio {
       if (!this.context || this.musicNodes.length === 0) return
       this.drum(fade, this.musicPulse % 4 === 0)
       this.musicPulse++
-      this.musicTimer = window.setTimeout(beat, 2300 + Math.random() * 260)
+      this.musicTimer = window.setTimeout(beat, this.musicBeatMs + Math.random() * 260)
     }
     this.musicTimer = window.setTimeout(beat, 1200)
+  }
+
+  /**
+   * Segunda vigília. O bordão abre o filtro e o tambor aperta, então a música
+   * fica mais presente sem trocar de faixa e sem subir o volume.
+   */
+  intensifyMusic(): void {
+    const { context } = this
+    if (!context || this.musicNodes.length === 0) return
+    const now = context.currentTime
+    for (const filter of this.musicFilters) {
+      filter.frequency.cancelScheduledValues(now)
+      filter.frequency.setValueAtTime(filter.frequency.value, now)
+      filter.frequency.linearRampToValueAtTime(620, now + 4)
+    }
+    this.musicBeatMs = 1500
   }
 
   stopBossMusic(): void {
@@ -375,13 +1060,8 @@ export class Audio {
     fade.gain.linearRampToValueAtTime(0, now + 1.6)
     const nodes = this.musicNodes
     this.musicNodes = []
-    window.setTimeout(() => {
-      for (const node of nodes) {
-        const osc = node as OscillatorNode
-        if (typeof osc.stop === 'function') osc.stop()
-        node.disconnect()
-      }
-    }, 1900)
+    this.musicFilters = []
+    window.setTimeout(() => stopAll(nodes), 1900)
   }
 
   private drum(destination: AudioNode, accent: boolean): void {
@@ -399,13 +1079,6 @@ export class Audio {
     osc.start(now)
     osc.stop(now + 0.75)
   }
-
-  dispose(): void {
-    this.stopBossMusic()
-    this.ambientSource?.stop()
-    void this.context?.close()
-    this.context = null
-  }
 }
 
 function makeBus(context: AudioContext, master: GainNode, level: number): GainNode {
@@ -413,6 +1086,50 @@ function makeBus(context: AudioContext, master: GainNode, level: number): GainNo
   gain.gain.value = level
   gain.connect(master)
   return gain
+}
+
+/**
+ * Fonte posicionada no mundo. `equalpower` em vez de HRTF de propósito: HRTF
+ * custa uma convolução por fonte e num jogo com doze braseiros isso aparece no
+ * fio de áudio sem melhorar nada que se perceba num alto-falante de laptop.
+ */
+function makePanner(
+  context: AudioContext,
+  ponto: Ponto,
+  refDistance: number,
+  maxDistance: number,
+  rolloff: number,
+): PannerNode {
+  const panner = context.createPanner()
+  panner.panningModel = 'equalpower'
+  panner.distanceModel = 'inverse'
+  panner.refDistance = refDistance
+  panner.maxDistance = maxDistance
+  panner.rolloffFactor = rolloff
+  const alvo = panner as PannerNode & {
+    positionX?: AudioParam
+    setPosition?: (x: number, y: number, z: number) => void
+  }
+  if (alvo.positionX) {
+    alvo.positionX.value = ponto.x
+    ;(alvo as unknown as Record<string, AudioParam>).positionY.value = ponto.y
+    ;(alvo as unknown as Record<string, AudioParam>).positionZ.value = ponto.z
+  } else {
+    alvo.setPosition?.(ponto.x, ponto.y, ponto.z)
+  }
+  return panner
+}
+
+function stopAll(nodes: AudioNode[]): void {
+  for (const node of nodes) {
+    const osc = node as OscillatorNode
+    try {
+      if (typeof osc.stop === 'function') osc.stop()
+    } catch {
+      // Fonte que já parou sozinha lança; não é problema.
+    }
+    node.disconnect()
+  }
 }
 
 /** Ruído branco levemente filtrado, reaproveitado por todos os efeitos. */

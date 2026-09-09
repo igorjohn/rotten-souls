@@ -160,7 +160,8 @@ export async function createGame(options: {
   }
   const gatePosition = new Vector3(arena.gate.position.x, 0, arena.gate.position.z)
 
-  // Som. Tudo sintetizado, nenhum arquivo de áudio no bundle.
+  // Som. Efeito curto é sintetizado; o que é longo e musical vem de amostra,
+  // com o sintetizado atrás como reserva. Ver src/core/audio.ts.
   player.onSwing = (heavy) => audio.swing(heavy)
   player.onStep = (weight) => audio.footstep(weight)
   player.onHitLanded = () => {
@@ -182,6 +183,7 @@ export async function createGame(options: {
   player.onDeath = () => {
     state.phase = 'dead'
     state.respawnTimer = 4.2
+    audio.death()
     hud.showDeath()
     input.clearBuffer()
   }
@@ -190,6 +192,7 @@ export async function createGame(options: {
     hud.setBossHealth(boss.healthRatio, true)
     hud.showHint('a segunda vigília começa', 3)
     audio.roar()
+    audio.intensifyMusic()
     cameraRig.punch(1.1)
   }
 
@@ -199,6 +202,7 @@ export async function createGame(options: {
     hud.showVictory()
     hud.hideBoss()
     audio.stopBossMusic()
+    audio.victory()
   }
 
   /**
@@ -243,6 +247,7 @@ export async function createGame(options: {
     playIntro()
     // O portão fecha atrás, que é o que transforma a arena em arena.
     arena.gate.controls.opacity.value = 0.92
+    audio.gateStinger()
     audio.startBossMusic()
   }
 
@@ -306,6 +311,8 @@ export async function createGame(options: {
 
       hud.setHealth(player.healthRatio)
       hud.setStamina(player.staminaRatio, player.exhausted)
+      audio.setExhausted(player.exhausted)
+      audio.bossStride(boss.object.position)
       if (state.phase === 'fighting' || state.phase === 'dead') {
         hud.setBossHealth(boss.healthRatio, boss.phase === 1)
       }

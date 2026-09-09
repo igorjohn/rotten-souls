@@ -18,3 +18,7 @@ assets-src/models/
 # Audio bruto: fonte pesada e nao comprimida, o que entra no jogo esta em
 # public/assets/audio.
 assets-src/audio/
+
+# Mapas brutos de material: 58 MB de PNG intermediario. O que entra no jogo esta
+# em public/assets/textures/materiais, e o gerador refaz isto quando preciso.
+assets-src/images/materiais/

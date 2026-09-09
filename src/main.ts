@@ -8,6 +8,7 @@ import { StatsPanel } from './debug/stats'
 import { exposeScreenshotHelper, flushScreenshot } from './debug/screenshot'
 import { Hud, setRendererBadge } from './ui/hud'
 import { Audio } from './core/audio'
+import { MenuMusic } from './core/menu-music'
 import { buildArena } from './world/arena'
 import { loadMaterials } from './world/materials'
 import { buildLighting, flickerBraziers } from './world/lighting'
@@ -23,6 +24,16 @@ const HDRI = 'assets/hdri/moonlit_golf_1k.hdr'
 async function boot(): Promise<void> {
   const canvas = document.querySelector<HTMLCanvasElement>('#game')!
   const hud = new Hud()
+  // `?mudo` na URL abre o jogo sem som nenhum: nem a trilha do menu, nem o
+  // contexto de Web Audio. Serve pra rodar o jogo em segundo plano durante o
+  // desenvolvimento sem tocar música na máquina de quem está trabalhando.
+  const mudo = new URLSearchParams(window.location.search).has('mudo')
+
+  // Antes de qualquer carregamento: a trilha do menu toca por cima da tela de
+  // carregamento e do título, que é justamente onde ela faz falta.
+  const menuMusic = new MenuMusic()
+  if (mudo) menuMusic.mute()
+  else menuMusic.start()
 
   hud.setLoading(0.05, 'acordando a GPU')
   const ctx = await createRenderContext(canvas)
@@ -85,7 +96,7 @@ async function boot(): Promise<void> {
     exposeScreenshotHelper()
     ;(window as unknown as { game: unknown }).game = {
       ctx, input, player, boss: game.boss, jogo: game, rig, arena, lighting,
-      physics, postfx, fogControls, brazierFx, audio,
+      physics, postfx, fogControls, brazierFx, audio, menuMusic,
     }
     ;(window as unknown as { perf: () => unknown }).perf = () => ({
       ...stats.snapshot,
@@ -99,7 +110,10 @@ async function boot(): Promise<void> {
 
   loop.on('input', (dt) => {
     input.update(dt)
-    if (input.consume('lockOn')) player.toggleLock([game.boss.object])
+    if (input.consume('lockOn')) {
+      player.toggleLock([game.boss.object])
+      audio.lockOn(player.lockTarget !== null)
+    }
   })
 
   loop.on('simulate', (dt) => {
@@ -120,6 +134,9 @@ async function boot(): Promise<void> {
 
   loop.on('camera', (dt) => {
     rig.update(dt, player.object, player.height, player.lockTarget)
+    // Ouvinte na câmera: é o que faz o braseiro e o portão virem da direção
+    // certa quando a câmera gira em volta do jogador.
+    audio.setListener(ctx.camera)
     if (player.lockTarget) {
       screenTarget.copy(player.lockTarget.position)
       screenTarget.y += 2.4
@@ -211,7 +228,12 @@ async function boot(): Promise<void> {
   hud.finishLoading()
   hud.onStart(() => {
     // O contexto de áudio só pode nascer dentro de um gesto do usuário.
-    audio.start()
+    menuMusic.fadeOut()
+    if (!mudo) {
+      audio.start()
+      audio.uiConfirm()
+      audio.placeWorld({ braziers: lighting.brazierPositions, gate: arena.gate.position })
+    }
     input.enabled = true
     input.requestPointerLock()
     hud.show()
