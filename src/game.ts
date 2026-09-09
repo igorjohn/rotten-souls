@@ -1,4 +1,4 @@
-import { Vector3, type PerspectiveCamera } from 'three/webgpu'
+import { Quaternion, Vector3, type Mesh, type PerspectiveCamera, type WebGPURenderer } from 'three/webgpu'
 import type { Assets } from './core/assets'
 import type { Audio } from './core/audio'
 import type { Physics } from './core/physics'
@@ -13,6 +13,7 @@ import {
   buildGreatsword,
   dressVharen,
 } from './entities/appearance'
+import { buildHelm, loadArmorMaterials } from './entities/armor'
 import type { MeshStandardNodeMaterial } from 'three/webgpu'
 import type { CameraRig } from './entities/camera-rig'
 import type { Arena } from './world/arena'
@@ -64,6 +65,7 @@ export async function createGame(options: {
   arena: Arena
   camera: PerspectiveCamera
   cameraRig: CameraRig
+  renderer: WebGPURenderer
 }): Promise<Game> {
   const { assets, physics, input, hud, audio, arena, cameraRig } = options
 
@@ -75,6 +77,18 @@ export async function createGame(options: {
   const playerRig = createRig(gltf, { scale: player.height / MODEL_HEIGHT })
   player.attachRig(playerRig)
   if (playerRig.hand) attachToHand(playerRig.hand, buildGreatsword(1))
+
+  // Comparação de armadura, pra o Igor escolher olhando. Por padrão vale a
+  // assada no GLB, que carrega oclusão e desgaste de aresta no próprio mapa,
+  // coisa que textura ladrilhada não sabe fazer. Com `?armadura` na URL entra a
+  // biblioteca por peça de `armor.ts`: aço de placa ladrilhado no corpo, mais o
+  // elmo como geometria, que é justamente o que falta na assada.
+  //
+  // A capa não é trocada porque ela já vem costurada na malha do GLB, e somar a
+  // capa da biblioteca daria duas.
+  if (new URLSearchParams(window.location.search).has('armadura')) {
+    await dressPlayerWithLibrary(options.renderer, playerRig)
+  }
 
   const boss = new Boss(physics)
 
@@ -302,4 +316,35 @@ export async function createGame(options: {
       }
     },
   }
+}
+
+/**
+ * Veste o jogador com a biblioteca por peça em vez da armadura assada. Fica
+ * atrás de `?armadura` porque é comparação, não decisão tomada.
+ *
+ * O elmo entra preso ao osso da cabeça e compensa a escala do osso, do mesmo
+ * jeito que `attachToHand` faz com o montante: o rig é escalado pra altura do
+ * personagem, e sem compensar o elmo herdaria essa escala duas vezes.
+ */
+async function dressPlayerWithLibrary(renderer: WebGPURenderer, rig: Rig): Promise<void> {
+  const materiais = await loadArmorMaterials(renderer)
+  rig.root.traverse((child) => {
+    const mesh = child as Mesh
+    if (mesh.isMesh && mesh.name === 'Mannequin') mesh.material = materiais.acoDePlaca
+  })
+
+  const cabeca = rig.root.getObjectByName('DEF-head')
+  if (!cabeca) {
+    console.warn('[game] osso da cabeça não encontrado, elmo não entrou')
+    return
+  }
+  cabeca.updateWorldMatrix(true, false)
+  const escala = new Vector3()
+  cabeca.matrixWorld.decompose(new Vector3(), new Quaternion(), escala)
+  const compensacao = escala.x > 0.0001 ? 1 / escala.x : 1
+
+  const elmo = buildHelm(materiais, { altura: 0.28 })
+  elmo.scale.multiplyScalar(compensacao)
+  elmo.position.set(0, 0.09 * compensacao, 0.01 * compensacao)
+  cabeca.add(elmo)
 }

@@ -65,6 +65,7 @@ async function boot(): Promise<void> {
     arena,
     camera: ctx.camera,
     cameraRig: rig,
+    renderer: ctx.renderer,
   })
   const player = game.player
   ctx.scene.add(player.object, game.boss.object)
