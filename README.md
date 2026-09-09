@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/readme/arte.jpg" alt="Rotten Souls" width="620" />
+  <img src="https://rotten-souls.igorsjohn.workers.dev/assets/readme/arte.jpg" alt="Rotten Souls" width="620" />
 </p>
 
 Vertical slice de um Souls-like que roda no navegador, em WebGPU. Uma arena
@@ -8,9 +8,11 @@ completo: entrar, lutar, morrer, voltar, vencer.
 
 A arena chama **Pátio das Cinzas**. O chefe chama **Vharen, Vigília das Ruínas**.
 
+**Joga aqui:** [rotten-souls.igorsjohn.workers.dev](https://rotten-souls.igorsjohn.workers.dev)
+
 ## Preview
 
-![Vharen no Pátio das Cinzas](docs/readme/preview.jpg)
+![Vharen no Pátio das Cinzas](https://rotten-souls.igorsjohn.workers.dev/assets/readme/preview.jpg)
 
 O chefe esperando no centro da arena, com a brasa da armadura acesa. A brasa é
 telegrafia: ela carrega junto com a preparação do golpe e estoura no impacto.
