@@ -1,6 +1,4 @@
-<p align="center">
-  <img src="https://rotten-souls.igorsjohn.workers.dev/assets/readme/arte.jpg" alt="Rotten Souls" width="620" />
-</p>
+<img src="https://rotten-souls.igorsjohn.workers.dev/assets/readme/banner.jpg" alt="Rotten Souls" width="100%" />
 
 Vertical slice de um Souls-like que roda no navegador, em WebGPU. Uma arena
 circular em ruínas à noite, um chefe de quatro metros e meio, e o ciclo
