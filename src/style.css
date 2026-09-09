@@ -262,16 +262,34 @@ canvas#game {
   transition: opacity 800ms ease;
 }
 
-/* A arte de capa entra por baixo como atmosfera, não como tipografia: ela traz
-   o mesmo nome escrito, então é ampliada e ancorada embaixo pra mostrar só as
-   silhuetas de castelo e a névoa, e desfocada pra não competir com a logo. */
+/* Plano de fundo do menu: a paisagem em ruínas, sem tipografia nenhuma, porque
+   a logo entra desenhada por cima. Cobre a tela inteira e continua desfocada e
+   escurecida, senão ela briga com a logo em vez de sustentar.
+
+   O sangramento de 6% e a escala de 1.06 existem por causa da deriva: sem essa
+   folga, o movimento mostraria a borda da imagem. E `will-change` promove a
+   camada, então o desfoque é calculado uma vez e a animação só a desloca, em
+   vez de refazer o borrão a cada quadro. */
 #start-gate::before {
   content: "";
   position: absolute;
-  inset: -40px;
-  background: url("/assets/ui/arte.webp") 50% 92% / 210% no-repeat;
-  opacity: 0.5;
-  filter: saturate(0.7) brightness(0.62) blur(3px);
+  inset: -6%;
+  background: url("/assets/ui/menu-fundo.webp") 50% 50% / cover no-repeat;
+  opacity: 0.62;
+  filter: saturate(0.72) brightness(0.6) blur(2px);
+  will-change: transform;
+  animation: menu-deriva 52s ease-in-out infinite alternate;
+}
+
+/* Deriva do fundo. Menos de um por cento da tela em cinquenta segundos: não é
+   pra ser vista, é pra a tela não parecer congelada. Percebe-se quando some. */
+@keyframes menu-deriva {
+  from {
+    transform: scale(1.06) translate3d(-0.9%, -0.5%, 0);
+  }
+  to {
+    transform: scale(1.06) translate3d(0.9%, 0.5%, 0);
+  }
 }
 
 #start-gate::after {
@@ -508,6 +526,7 @@ canvas#game {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  #start-gate::before,
   #start-gate:not(.hidden) .logo,
   #start-gate:not(.hidden) .start-sub,
   #start-gate:not(.hidden) #start-button,
