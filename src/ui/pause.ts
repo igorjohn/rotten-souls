@@ -10,11 +10,15 @@
  * porque é o que a dica no canto da tela promete.
  */
 
+import { type QualityLevel, QUALITY_LEVELS } from '../core/quality'
+
 const TECLAS = new Set(['Enter', 'NumpadEnter', 'Escape'])
 
 export class PauseMenu {
   private readonly root: HTMLElement
   private readonly resumeButton: HTMLButtonElement
+  private readonly qualityButtons = new Map<QualityLevel, HTMLButtonElement>()
+  private readonly qualityAuto: HTMLElement
   private aberto = false
   /** Só responde depois que a partida começou. No menu inicial, não. */
   private armado = false
@@ -22,11 +26,26 @@ export class PauseMenu {
   constructor(
     private readonly onPause: () => void,
     private readonly onResume: () => void,
+    private readonly onQuality: (level: QualityLevel) => void,
   ) {
     this.root = document.querySelector<HTMLElement>('#pause-menu')!
     this.resumeButton = document.querySelector<HTMLButtonElement>('#pause-resume')!
     this.resumeButton.addEventListener('click', () => this.close())
+    this.qualityAuto = document.querySelector<HTMLElement>('#pause-quality-auto')!
+    for (const level of QUALITY_LEVELS) {
+      const button = this.root.querySelector<HTMLButtonElement>(`[data-quality="${level}"]`)!
+      button.addEventListener('click', () => this.onQuality(level))
+      this.qualityButtons.set(level, button)
+    }
     window.addEventListener('keydown', this.onKeyDown)
+  }
+
+  /** Reflete o nível atual. Chamado na troca, venha ela do jogador ou do automático. */
+  setQuality(level: QualityLevel, auto: boolean): void {
+    for (const [each, button] of this.qualityButtons) {
+      button.setAttribute('aria-pressed', String(each === level))
+    }
+    this.qualityAuto.hidden = !auto
   }
 
   get open(): boolean {

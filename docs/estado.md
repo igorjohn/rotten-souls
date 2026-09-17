@@ -1,6 +1,6 @@
 # Onde paramos
 
-Atualizado em 2026-09-08. Este arquivo existe pra uma sessão nova pegar o fio
+Atualizado em 2026-09-17. Este arquivo existe pra uma sessão nova pegar o fio
 sem reler o histórico inteiro. Detalhe de decisão fica em `decisions.md`,
 número fica em `perf.md`.
 
@@ -27,6 +27,11 @@ contra 1,5 milhão. Download 9,8 MB contra 60 MB.
   ao jogador. Quando terminar, revisar, verificar visualmente e commitar.
 
 ## Pendências conhecidas
+
+- **Perfis de qualidade sem medição em máquina fraca.** Entraram em
+  2026-09-17 (automático + menu de pausa + `?qualidade=`), medidos só aqui
+  forçando 4K. Falta print do `?stats` de um Windows com GPU integrada pra
+  confirmar que o `baixo` segura 60 fps lá.
 
 - **Vharen definitivo atrás de `?vharen`.** O modelo é bom, a animação deforma.
   É o que o agente do Blender está resolvendo.
@@ -56,8 +61,9 @@ golpes leves, e cancelamento do fim do golpe por esquiva.
 
 ## Parâmetros de URL
 
-`?mute` abre sem som, `?size=LxA` força a resolução do buffer, `?vharen` liga o
-modelo gerado do chefe.
+`?mudo` abre sem som, `?size=LxA` força a resolução do buffer, `?stats` abre o
+painel de perf (também em produção), `?qualidade=alto|medio|baixo` força o
+perfil de qualidade, `?mannequim` troca o Vharen definitivo pelo provisório.
 
 ## Chaves
 

@@ -15,6 +15,8 @@ export interface RenderContext {
   backend: Backend
   /** Escala de resolução aplicada por cima do devicePixelRatio, ajustada em tempo real. */
   resolutionScale: number
+  /** Teto do devicePixelRatio. O perfil de qualidade mexe aqui. */
+  maxPixelRatio: number
   /** Abre o frame: zera contadores e avança o relógio dos nós. Ver beginFrame. */
   beginFrame(): void
 }
@@ -38,8 +40,6 @@ function beginFrame(renderer: WebGPURenderer): void {
   // com o relogio dos nos; aqui so espelhamos o que o loop dele faria.
   ;(renderer.info as unknown as { frame: number }).frame = nodes.nodeFrame.frameId
 }
-
-const MAX_PIXEL_RATIO = 1.5
 
 function webgpuAvailable(): boolean {
   return typeof navigator !== 'undefined' && 'gpu' in navigator
@@ -94,6 +94,7 @@ export async function createRenderContext(canvas: HTMLCanvasElement): Promise<Re
     camera,
     backend,
     resolutionScale: 1,
+    maxPixelRatio: 1.5,
     beginFrame: () => beginFrame(renderer),
   }
   applySize(ctx)
@@ -118,7 +119,7 @@ export function applySize(ctx: RenderContext): void {
   // Quando o viewport reporta zero, o CSS deixa o canvas em 0x0 e o WebGPU nao
   // consegue criar a swapchain. Ai o tamanho tem que ir tambem pro estilo.
   const needsExplicitStyle = !window.innerWidth || !window.innerHeight || Boolean(forced)
-  const ratio = Math.min(window.devicePixelRatio || 1, MAX_PIXEL_RATIO) * ctx.resolutionScale
+  const ratio = Math.min(window.devicePixelRatio || 1, ctx.maxPixelRatio) * ctx.resolutionScale
 
   ctx.camera.aspect = width / height
   ctx.camera.updateProjectionMatrix()
@@ -137,10 +138,19 @@ export class ResolutionGovernor {
 
   constructor(
     private readonly ctx: RenderContext,
-    private readonly targetMs = 15,
-    private readonly min = 0.62,
+    readonly targetMs = 15,
+    private min = 0.62,
     private readonly max = 1,
   ) {}
+
+  /** Piso novo, do perfil de qualidade. Se a escala atual está abaixo dele, sobe na hora. */
+  setMinScale(min: number): void {
+    this.min = min
+    if (this.ctx.resolutionScale < min) {
+      this.ctx.resolutionScale = min
+      applySize(this.ctx)
+    }
+  }
 
   update(dt: number, frameMs: number): void {
     this.cooldown -= dt

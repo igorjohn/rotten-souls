@@ -15,6 +15,7 @@ export class Loop {
   private readonly stages = new Map<Stage, StageFn[]>()
   private running = false
   private lastFrameMs = 0
+  private lastIntervalMs = 0
   private frameStart = 0
 
   /**
@@ -63,8 +64,18 @@ export class Loop {
     this.stages.get(stage)!.push(fn)
   }
 
+  /** Tempo de CPU do último frame, do começo do tick ao fim do render. */
   get frameMs(): number {
     return this.lastFrameMs
+  }
+
+  /**
+   * Tempo de parede entre dois ticks, sem clamp nem timeScale. É o que o
+   * jogador sente como fps: quando a GPU não dá conta, o `frameMs` de CPU
+   * pode continuar baixo enquanto este número dobra.
+   */
+  get intervalMs(): number {
+    return this.lastIntervalMs
   }
 
   start(): void {
@@ -76,7 +87,9 @@ export class Loop {
     if (!this.allowHiddenTicks) this.timer.connect(document)
     const tick = () => {
       if (!this.running) return
-      this.frameStart = performance.now()
+      const now = performance.now()
+      this.lastIntervalMs = this.frameStart ? now - this.frameStart : 0
+      this.frameStart = now
       this.timer.update()
       const dt = Math.min(this.timer.getDelta(), this.maxDelta) * this.timeScale
       const elapsed = this.timer.getElapsed()

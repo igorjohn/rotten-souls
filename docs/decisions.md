@@ -410,3 +410,40 @@ zero. O que faltava era medição e calibragem, não material novo. O único cli
 que valeria comprar seria um rugido gravado no lugar do sintetizado, e o Lyria
 é modelo de música: pedir vocalização de criatura a ele devolve música, não
 rugido. Os 2,5 MB de áudio já entregues seguem cabendo folgado no orçamento.
+
+## 2026-09-17 — Perfis de qualidade pra máquina fraca
+
+Relato do Igor: em Windows com 8 GB e GPU integrada o jogo roda com fps baixo
+constante. Isso é GPU presa no custo por pixel, e o governador de resolução
+sozinho não resolve: ele só desce até 0,62 e o custo fixo (sombra, 14 luzes
+pontuais avaliadas em todo pixel, oclusão de ambiente com MRT) fica.
+
+- **Três perfis em `src/core/quality.ts`: `alto`, `medio`, `baixo`.** O
+  `alto` é o look aprovado no M2, sem nenhuma mudança. O `medio` corta o
+  `devicePixelRatio` em 1,25, a sombra em 1024, a oclusão em 6 amostras e as
+  luzes de braseiro em 8. O `baixo` trava o ratio em 1,0, tira a oclusão e o
+  MRT de normais junto, usa PCF simples e 6 luzes.
+- **Escolha automática, só descendo.** Mede o intervalo de parede entre ticks
+  (`Loop.intervalMs`, novo), não o tempo de CPU do frame: em WebGPU a GPU
+  atrasada nem sempre aparece no tempo de CPU. Acima de 21 ms suavizado por
+  3 s, desce um nível e espera 5 s. Nunca sobe sozinho, pra não oscilar.
+- **Escolha manual no menu de pausa**, persistida em `localStorage`, desliga
+  o automático. `?qualidade=alto|medio|baixo` força pela URL.
+- **Luzes de braseiro viraram um pool.** Trocar `visible` de uma luz muda o
+  conjunto de luzes e recompila todo shader (a chave de cache do `LightsNode`
+  inclui os ids), então o pool tem tamanho fixo por perfil e as luzes são
+  redistribuídas entre os braseiros mais próximos do jogador, com margem de
+  1,5 m pra não pular. A fase do tremor fica presa ao braseiro.
+- **Mudar `shadow.mapSize` numa luz viva quebra no WebGPU do r185.** O alvo
+  é redimensionado e destruído no passe de sombra, mas os materiais seguem
+  apontando pra textura antiga: `Destroyed texture ShadowDepthTexture used in
+  a submit`, todo frame, tela preta. `material.needsUpdate` não conserta.
+  Solução: `setMoonShadowSize` troca a lua inteira por outra luz, o que
+  recompila os materiais uma vez e sai limpo. Trocar `shadowMap.type` em
+  tempo real funciona sem truque.
+- **`PostProcessing` virou `RenderPipeline`.** Depreciado desde o r183; o
+  pós-processo agora reconstrói o grafo por perfil e troca o `outputNode`.
+- **`?stats` abre o painel de perf em produção.** Pra quem reporta lentidão
+  mandar print com número em vez de "está travando".
+- Não medido numa máquina fraca de verdade: o Igor não tem uma à mão. O
+  ganho por pixel foi medido aqui forçando 4K, ver `perf.md`.

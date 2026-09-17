@@ -1,127 +1,170 @@
 <img src="https://rottensouls.com/assets/readme/banner.jpg" alt="Rotten Souls" width="100%" />
 
-Vertical slice de um Souls-like que roda no navegador, em WebGPU. Uma arena
-circular em ruínas à noite, um chefe de quatro metros e meio, e o ciclo
-completo: entrar, lutar, morrer, voltar, vencer.
+A vertical slice of a Souls-like that runs in the browser, on WebGPU. A ruined
+circular arena at night, a four-and-a-half-metre boss, and the full loop:
+enter, fight, die, come back, win.
 
-A arena chama **Pátio das Cinzas**. O chefe chama **Vharen, Vigília das Ruínas**.
+The arena is the **Courtyard of Ashes** (Pátio das Cinzas). The boss is
+**Vharen, Vigil of the Ruins** (Vharen, Vigília das Ruínas). The game itself is
+in Brazilian Portuguese.
 
 > [!NOTE]
-> **Clique aqui para jogar:** [rottensouls.com](https://rottensouls.com)
+> **Play it here:** [rottensouls.com](https://rottensouls.com)
 
 ## Preview
 
-![Vharen no Pátio das Cinzas](https://rottensouls.com/assets/readme/preview.jpg)
+![Vharen in the Courtyard of Ashes](https://rottensouls.com/assets/readme/preview.jpg)
 
-O chefe esperando no centro da arena, com a brasa da armadura acesa. A brasa é
-telegrafia: ela carrega junto com a preparação do golpe e estoura no impacto.
+The boss waiting at the centre of the arena, embers glowing in his armour. The
+embers are telegraphy: they charge up with the wind-up of a strike and burst on
+impact.
 
-## Rodar
+## Running it
 
 ```bash
 pnpm install
 pnpm dev
 ```
 
-Abre em `http://localhost:5173`. Precisa de um navegador com WebGPU; sem ele o
-jogo cai sozinho pra WebGL2 com pós-processo reduzido e avisa no canto.
+Opens at `http://localhost:5173`. Needs a browser with WebGPU; without it the
+game falls back to WebGL2 on its own, with reduced post-processing, and says so
+in the corner.
 
 ```bash
-pnpm build     # bundle de produção em dist/
-pnpm typecheck # tsc sem emitir
+pnpm build     # production bundle in dist/
+pnpm typecheck # tsc without emitting
 ```
 
-## Comandos
+## Controls
 
-| Tecla | Ação |
+| Key | Action |
 |---|---|
-| `W` `A` `S` `D` | mover, relativo à câmera |
-| `Shift` | correr |
-| `Espaço` | esquiva com invencibilidade |
-| Mouse esquerdo | golpe leve, encadeia até três |
-| Mouse direito | golpe pesado |
-| `Q` ou botão do meio | trava e destrava a mira |
-| `F3` | painel de perf |
-| `F4` | sliders de look dev |
+| `W` `A` `S` `D` | move, relative to the camera |
+| `Shift` | run |
+| `Space` | dodge roll with invincibility frames |
+| Left mouse | light attack, chains up to three |
+| Right mouse | heavy attack |
+| `Q` or middle mouse | lock-on / unlock |
+| `Enter` or `Esc` | pause menu |
+| `F3` | perf panel |
+| `F4` | look-dev sliders |
 
-Gamepad também funciona: analógico esquerdo move, direito olha, A esquiva,
-X leve, Y pesado, R3 trava a mira, LT corre.
+Gamepad works too: left stick moves, right stick looks, A dodges, X light,
+Y heavy, R3 locks on, LT runs.
 
-Parâmetros de URL úteis em desenvolvimento: `?mudo` abre sem som nenhum,
-`?size=LxA` força a resolução do buffer, `?mannequim` troca o Vharen definitivo
-pelo provisório e `?assada` devolve a armadura antiga do jogador.
+## Graphics quality
+
+Three profiles, `alto` (high), `medio` (medium) and `baixo` (low). High is the
+approved look and changes nothing. Medium caps the device pixel ratio at 1.25,
+drops the shadow map to 1024, the ambient occlusion to 6 samples and the
+brazier point lights to 8. Low caps the ratio at 1.0, turns ambient occlusion
+off (and the normals MRT with it), uses plain PCF shadows and 6 lights.
+
+The game picks a profile by itself: when the wall-clock interval between
+frames stays above 21 ms for three seconds, it steps down one level and waits.
+It only ever steps down. Picking a level in the pause menu turns the automatic
+choice off and saves it in the browser. Per-pixel cost measured in
+[`docs/perf.md`](docs/perf.md): low costs 2.4 times less than high.
+
+Point lights are a fixed-size pool per profile, handed out to the braziers
+nearest the player every frame, because toggling a light's visibility in
+Three.js changes the light set and recompiles every shader.
+
+## URL parameters
+
+Useful in development and for bug reports: `?mudo` opens with no sound at all,
+`?stats` opens the perf panel (works in production too, send a screenshot of
+it when reporting slowness), `?qualidade=alto|medio|baixo` forces a quality
+profile, `?size=WxH` forces the buffer resolution, `?mannequim` swaps the
+final Vharen for the placeholder and `?assada` brings back the player's old
+armour.
 
 ## Stack
 
-TypeScript, Vite, Three.js r185 com `WebGPURenderer`, TSL pro pós-processo,
-Rapier pra física, Web Audio API direto. Sem framework de UI: o HUD é HTML e CSS
-por cima do canvas.
+TypeScript, Vite, Three.js r185 with `WebGPURenderer`, TSL for the
+post-processing, Rapier for physics, raw Web Audio API. No UI framework: the
+HUD is HTML and CSS on top of the canvas.
 
-## Como isso foi feito
+## How it was made
 
-Quase tudo que se vê é gerado por código. A arena inteira, incluindo a arcada
-gótica de doze vãos com arco ogival vazado, os vãos arruinados, os contrafortes,
-o piso em anéis e a escadaria, sai de um kit paramétrico em `src/world/kit`.
-Nenhum modelo de arquitetura foi importado.
+Almost everything on screen is generated by code. The whole arena, including
+the twelve-bay gothic arcade with open pointed arches, the ruined bays, the
+buttresses, the ringed floor and the stairway, comes out of a parametric kit in
+`src/world/kit`. No architecture model was imported.
 
-O som é quase todo sintetizado na Web Audio API: vento, passo, impacto, rugido e
-a música do chefe nascem de osciladores e ruído filtrado, o que sai mais leve que
-qualquer amostra comprimida e responde a parâmetro. As exceções são o banco de
-cortes de espada e a trilha do menu, que são arquivos.
+Sound is almost entirely synthesised in the Web Audio API: wind, footsteps,
+impacts, the roar and the boss music are born from oscillators and filtered
+noise, which is lighter than any compressed sample and responds to parameters.
+The exceptions are the bank of sword swings and the menu track, which are
+files.
 
-As texturas são CC0 do [ambientCG](https://ambientcg.com), o céu noturno é do
-[Poly Haven](https://polyhaven.com), e os personagens provisórios vêm da
-Universal Animation Library do [Quaternius](https://quaternius.com), também CC0.
-Créditos completos em `public/assets/*/CREDITOS.md`.
+Textures are CC0 from [ambientCG](https://ambientcg.com), the night sky is from
+[Poly Haven](https://polyhaven.com), and the placeholder characters come from
+the Universal Animation Library by [Quaternius](https://quaternius.com), also
+CC0. Full credits in `public/assets/*/CREDITOS.md`.
 
-## Orçamento
+The generative-AI bill for the whole project was under one US dollar of API
+usage (textures through Gemini and music through Lyria, both via OpenRouter)
+plus 47.5 Higgsfield credits for the rigged boss model. The full recipe, with
+tools, costs and pitfalls, is in
+[`docs/como-fazer-um-jogo-assim.md`](docs/como-fazer-um-jogo-assim.md)
+(in Portuguese).
 
-Medido a cada marco em [`docs/perf.md`](docs/perf.md).
+## Budget
 
-| Item | Medido | Limite |
+Measured at every milestone in [`docs/perf.md`](docs/perf.md).
+
+| Item | Measured | Limit |
 |---|---|---|
-| Frame time | 14,6 ms | 16 ms |
+| Frame time | 14.6 ms | 16 ms |
 | Draw calls | 84 | 300 |
-| Triângulos | 159 mil | 1,5 milhão |
+| Triangles | 159k | 1.5M |
 | Download | 18 MB | 60 MB |
-| Luzes com sombra em tempo real | 1 | 1 |
+| Real-time shadow-casting lights | 1 | 1 |
 
-## Estrutura
+## Structure
 
 ```
 src/
-  core/       renderer, loop, input, assets, física, áudio, pós-processo
-  world/      arena, iluminação, kit modular, névoa e fogo
-  entities/   personagem, jogador, chefe, combate, câmera, animação
-  ui/         HUD
-  debug/      painel de perf, sliders, captura de tela
-scripts/      geração de imagem, download de textura, otimização de asset
-docs/         perf, decisões, direção de arte, screenshots
+  core/       renderer, loop, input, assets, physics, audio, post-processing, quality profiles
+  world/      arena, lighting, modular kit, fog and fire
+  entities/   character, player, boss, combat, camera, animation
+  ui/         HUD, pause menu
+  debug/      perf panel, sliders, screenshot capture
+scripts/      image generation, texture download, asset optimisation
+docs/         perf, decisions, art direction, screenshots
 ```
 
-## Documentação
+## Documentation
 
-- [`docs/decisions.md`](docs/decisions.md) tem uma linha por decisão, com o
-  motivo. Inclui os becos sem saída, que costumam ser mais úteis que os acertos.
-- [`docs/perf.md`](docs/perf.md) tem os números de cada marco e como foram medidos.
-- [`docs/art-direction.md`](docs/art-direction.md) tem as regras do look.
-- [`docs/como-fazer-um-jogo-assim.md`](docs/como-fazer-um-jogo-assim.md) é a
-  receita completa, com o fluxo, as ferramentas, os custos medidos e as
-  armadilhas, para quem quiser reproduzir isto em outro jogo.
-- [`docs/narrativa.md`](docs/narrativa.md) tem a ficção: o que é uma vigília,
-  quem é Vharen, por que o jogador volta e o que a vitória custa.
-- `CLAUDE.md` é o briefing original do projeto.
+All of it is in Portuguese.
 
-## O que ainda não está pronto
+- [`docs/decisions.md`](docs/decisions.md) has one line per decision, with the
+  reason. Includes the dead ends, which tend to be more useful than the hits.
+- [`docs/perf.md`](docs/perf.md) has the numbers for every milestone and how
+  they were measured.
+- [`docs/art-direction.md`](docs/art-direction.md) has the rules of the look.
+- [`docs/como-fazer-um-jogo-assim.md`](docs/como-fazer-um-jogo-assim.md) is
+  the complete recipe, with the workflow, the tools, the measured costs and
+  the traps, for anyone who wants to reproduce this in another game.
+- [`docs/narrativa.md`](docs/narrativa.md) has the fiction: what a vigil is,
+  who Vharen is, why the player comes back and what victory costs.
+- `CLAUDE.md` is the project's original brief.
 
-- O frame time subiu de 5,2 ms para 14,6 ms quando as malhas esfoladas do chefe
-  e do jogador entraram. Triângulo e chamada de desenho continuam folgados, então
-  o custo está na esfola e na passagem de sombra, e falta isolar qual dos dois.
-- Texturas em KTX2, que reduziriam a memória de vídeo. Falta o encoder na
-  máquina, então as texturas de material saem em WebP.
-- Bloqueio e aparo, cortados quando a arma virou montante sem escudo.
+## Not done yet
 
-## Licença
+- The quality profiles have not been measured on an actual weak machine. The
+  per-pixel gain was measured here by forcing 4K; a `?stats` screenshot from a
+  Windows laptop with an integrated GPU is still missing.
+- Frame time went from 5.2 ms to 14.6 ms when the skinned meshes of the boss
+  and the player came in. Triangles and draw calls are still comfortable, so
+  the cost is in skinning and the shadow pass, and which of the two is still to
+  be isolated.
+- KTX2 textures, which would cut video memory. The encoder is missing on the
+  build machine, so material textures ship as WebP.
+- Block and parry, cut when the weapon became a greatsword with no shield.
 
-Código sob MIT. Os assets de terceiros seguem as licenças dos respectivos
-autores, todas CC0, com origem registrada nos arquivos de crédito.
+## Licence
+
+Code under MIT. Third-party assets follow their authors' licences, all CC0,
+with the source recorded in the credit files.

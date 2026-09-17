@@ -617,6 +617,59 @@ canvas#game {
   outline: none;
 }
 
+.pause-quality {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 26px;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #8d8474;
+}
+
+.pause-quality-label {
+  margin-right: 8px;
+}
+
+.pause-quality button {
+  font-family: Cinzel, Georgia, serif;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #a49b87;
+  background: transparent;
+  border: 1px solid rgba(160, 150, 130, 0.28);
+  padding: 7px 14px;
+  cursor: pointer;
+  transition:
+    color 200ms ease,
+    background 200ms ease,
+    border-color 200ms ease;
+}
+
+.pause-quality button:hover,
+.pause-quality button:focus-visible {
+  color: #e6d9bd;
+  border-color: rgba(222, 200, 160, 0.55);
+  outline: none;
+}
+
+.pause-quality button[aria-pressed='true'] {
+  color: #ffd17a;
+  background: rgba(255, 138, 42, 0.1);
+  border-color: rgba(255, 178, 106, 0.7);
+}
+
+.pause-quality-auto {
+  margin-left: 8px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: none;
+  color: #6f6959;
+}
+
 .pause-foot {
   margin: 18px 0 0;
   font-size: 12px;

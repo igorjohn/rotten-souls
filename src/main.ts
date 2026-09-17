@@ -1,5 +1,5 @@
 import { Vector3 } from 'three/webgpu'
-import { createRenderContext, ResolutionGovernor } from './core/renderer'
+import { applySize, createRenderContext, ResolutionGovernor } from './core/renderer'
 import { Loop } from './core/loop'
 import { Input } from './core/input'
 import { Assets } from './core/assets'
@@ -12,10 +12,11 @@ import { Audio } from './core/audio'
 import { MenuMusic } from './core/menu-music'
 import { buildArena } from './world/arena'
 import { loadMaterials } from './world/materials'
-import { buildLighting, flickerBraziers } from './world/lighting'
+import { buildLighting, setBrazierLightBudget, setMoonShadowSize, updateBrazierLights } from './world/lighting'
 import { buildFog } from './world/fx/fog'
 import { buildBrazierFx } from './world/fx/flame'
 import { buildPostFx } from './core/postfx'
+import { QualityManager, type QualityProfile } from './core/quality'
 import { LookDevGui } from './debug/gui'
 import { CameraRig } from './entities/camera-rig'
 import { createGame } from './game'
@@ -35,8 +36,11 @@ async function boot(): Promise<void> {
   const menuMusic = new MenuMusic()
   if (mudo) menuMusic.mute()
 
+  const quality = new QualityManager()
+
   hud.setLoading(0.05, 'acordando a GPU')
   const ctx = await createRenderContext(canvas)
+  ctx.maxPixelRatio = quality.profile.maxPixelRatio
   setRendererBadge(ctx.backend === 'webgpu' ? 'WebGPU' : 'WebGL2, pós-processo reduzido')
 
   const assets = new Assets(ctx.renderer)
@@ -82,15 +86,35 @@ async function boot(): Promise<void> {
   ctx.scene.add(player.object, game.boss.object)
 
   hud.setLoading(0.96, 'compondo a imagem')
-  const postfx = buildPostFx(ctx.renderer, ctx.scene, ctx.camera, ctx.backend)
+  const postfx = buildPostFx(ctx.renderer, ctx.scene, ctx.camera, ctx.backend, quality.profile)
   const applyPostSize = () => postfx.setSize(window.innerWidth || 1600, window.innerHeight || 900)
   applyPostSize()
   window.addEventListener('resize', applyPostSize)
 
-  const stats = new StatsPanel(ctx)
+  const stats = new StatsPanel(ctx, () => `${quality.level}${quality.auto ? ' (auto)' : ''}`)
+  // `?stats` abre o painel de perf em produção, pra quem reporta lentidão
+  // mandar um print com número em vez de "está travando".
+  if (new URLSearchParams(window.location.search).has('stats')) stats.toggle(true)
   const governor = new ResolutionGovernor(ctx)
   const loop = new Loop()
   const screenTarget = new Vector3()
+
+  /**
+   * Aplica um perfil de qualidade em tudo que ele toca. Roda no boot e a cada
+   * troca, fora do render: trocar tipo de sombra e grafo de pós-processo
+   * recompila shader, e isso engasga um frame, o que é aceitável numa troca
+   * de menu e inaceitável no meio de um golpe.
+   */
+  const applyQuality = (profile: QualityProfile, auto: boolean) => {
+    ctx.maxPixelRatio = profile.maxPixelRatio
+    ctx.renderer.shadowMap.type = profile.shadowType
+    setMoonShadowSize(lighting, profile.shadowMapSize)
+    setBrazierLightBudget(lighting, profile.brazierLights)
+    postfx.setQuality(profile)
+    governor.setMinScale(profile.minScale)
+    applySize(ctx)
+    pause.setQuality(profile.level, auto)
+  }
 
   /**
    * Pausa. Corta input, simulação, animação e câmera, e deixa o estágio de
@@ -112,18 +136,33 @@ async function boot(): Promise<void> {
       input.enabled = true
       input.requestPointerLock()
     },
+    (level) => {
+      quality.choose(level)
+      // Clicar no nível que já está ativo não troca nada, mas desliga o automático.
+      pause.setQuality(quality.level, quality.auto)
+    },
   )
+
+  // O perfil inicial já entrou no renderer e no pós-processo na construção;
+  // aqui só o que resta (sombra, luzes, governador, botão do menu).
+  ctx.renderer.shadowMap.type = quality.profile.shadowType
+  setMoonShadowSize(lighting, quality.profile.shadowMapSize)
+  setBrazierLightBudget(lighting, quality.profile.brazierLights)
+  governor.setMinScale(quality.profile.minScale)
+  pause.setQuality(quality.level, quality.auto)
+  quality.onChange(applyQuality)
 
   if (import.meta.env.DEV) {
     exposeScreenshotHelper()
     ;(window as unknown as { game: unknown }).game = {
       ctx, input, player, boss: game.boss, jogo: game, rig, arena, lighting,
-      physics, postfx, fogControls, brazierFx, audio, menuMusic, pause,
+      physics, postfx, fogControls, brazierFx, audio, menuMusic, pause, quality,
     }
     ;(window as unknown as { perf: () => unknown }).perf = () => ({
       ...stats.snapshot,
       backend: ctx.backend,
       resolutionScale: ctx.resolutionScale,
+      quality: quality.level,
       state: player.state,
       position: player.object.position.toArray().map((n) => Number(n.toFixed(2))),
       locked: player.lockTarget !== null,
@@ -150,7 +189,7 @@ async function boot(): Promise<void> {
 
   loop.on('animate', (dt, elapsed) => {
     if (pause.open) return
-    flickerBraziers(lighting.braziers, elapsed)
+    updateBrazierLights(lighting, player.object.position, elapsed)
     game.update(dt)
     hud.update(dt)
     // O jogo pede a escala, o loop aplica. É assim que o hitstop chega na física.
@@ -192,6 +231,7 @@ async function boot(): Promise<void> {
     flushScreenshot(captureContext)
     stats.update(dt, loop.frameMs)
     governor.update(dt, loop.frameMs)
+    quality.update(dt, loop.intervalMs, governor.targetMs)
   })
 
   if (import.meta.env.DEV) {

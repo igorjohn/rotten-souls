@@ -19,7 +19,10 @@ export class StatsPanel {
   private visible = false
   private last: Sample = { fps: 0, frameMs: 0, drawCalls: 0, triangles: 0 }
 
-  constructor(private readonly ctx: RenderContext) {
+  constructor(
+    private readonly ctx: RenderContext,
+    private readonly qualityLabel: () => string,
+  ) {
     this.root.id = 'stats-panel'
     this.root.style.cssText = [
       'position:fixed',
@@ -83,6 +86,8 @@ export class StatsPanel {
       `draw calls ${s.drawCalls}`,
       `triangles  ${s.triangles.toLocaleString('pt-BR')}`,
       `escala     ${this.ctx.resolutionScale.toFixed(2)}`,
+      `qualidade  ${this.qualityLabel()}`,
+      `pixels     ${this.ctx.renderer.domElement.width}x${this.ctx.renderer.domElement.height}`,
       `geometrias ${info.memory.geometries}  texturas ${info.memory.textures}`,
     ].join('\n')
   }

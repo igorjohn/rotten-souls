@@ -262,3 +262,33 @@ número de 1080p nativo da definição de pronto ainda não está provado.
 
 Falta isolar quanto disso é a esfola, quanto é a passagem de sombra e quanto é
 o pós-processo na resolução maior. Não otimizar antes de medir isso.
+
+## 2026-09-17 — Perfis de qualidade
+
+Em 1080p este Mac não chega perto do limite (frame de CPU em 2,8 ms, 60 fps
+travado no vsync), então pra comparar os perfis o buffer foi forçado em 4K
+com `?size=3840x2160`, dentro da arena, perto do chefe. Aí a GPU vira o
+gargalo e o tempo de CPU do frame passa a incluir a espera pela fila. Mediana
+de oito amostras de meio segundo, depois de 4 s de acomodação em cada perfil.
+O governador estava ligado, então a resolução final difere por perfil; a
+coluna por megapixel é a que compara custo por pixel.
+
+| Perfil | Pixels no buffer | Frame | fps | ms por megapixel | Luzes | Sombra | Oclusão |
+|---|---|---|---|---|---|---|---|
+| alto | 2380×1339 (3,19 MP) | 29,0 ms | 34 | 9,1 | 12 | 1536 PCF suave | 10 amostras |
+| medio | 2112×1188 (2,51 MP) | 13,3 ms | 68 | 5,3 | 8 | 1024 PCF suave | 6 amostras |
+| baixo | 2304×1296 (2,99 MP) | 11,4 ms | 84 | 3,8 | 6 | 1024 PCF | desligada |
+
+O `baixo` custa 2,4 vezes menos por pixel que o `alto`, e ainda por cima o
+ratio travado em 1,0 e o piso do governador em 0,5 dão menos pixels pra
+pintar. Numa GPU integrada isso é a diferença entre 25 e 60 fps, mas é
+projeção: **não foi medido numa máquina fraca**. O que dá pra afirmar é o
+ganho relativo acima.
+
+A troca de perfil em tempo real custa um frame de 100 a 130 ms (recompilação
+de shader), aceitável no menu de pausa. Sem erro de validação do WebGPU em
+nenhuma combinação de troca, depois do conserto da sombra descrito em
+`decisions.md`.
+
+Draw calls e triângulos não mudam entre perfis (91 a 92 chamadas, 159 mil
+triângulos): os perfis mexem em custo por pixel e em passes, não em geometria.

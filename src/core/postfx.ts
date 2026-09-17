@@ -1,4 +1,4 @@
-import { PostProcessing, type PerspectiveCamera, type Scene, type WebGPURenderer } from 'three/webgpu'
+import { RenderPipeline, type PerspectiveCamera, type Scene, type WebGPURenderer } from 'three/webgpu'
 import {
   Fn,
   float,
@@ -20,6 +20,7 @@ import {
 import { bloom } from 'three/addons/tsl/display/BloomNode.js'
 import { ao } from 'three/addons/tsl/display/GTAONode.js'
 import type { Backend } from './renderer'
+import type { QualityProfile } from './quality'
 
 /** Tudo que o painel de look dev mexe em tempo real. */
 function createControls() {
@@ -40,41 +41,88 @@ function createControls() {
 export type PostFxControls = ReturnType<typeof createControls>
 
 export interface PostFx {
-  processing: PostProcessing
+  processing: RenderPipeline
   controls: PostFxControls
   setSize(width: number, height: number): void
+  /** Refaz o grafo pro perfil novo. Chamar fora do render. */
+  setQuality(profile: QualityProfile): void
   render(): void
+}
+
+interface Graph {
+  output: ReturnType<typeof vec4>
+  setSize(width: number, height: number): void
+  dispose(): void
 }
 
 /**
  * Pipeline de pós-processo. Bloom baixo e largo pro fogo respirar sem estourar,
  * oclusão de ambiente pra assentar os objetos no chão, color grading puxando
  * azul-esverdeado nas sombras e âmbar nas luzes, vinheta leve e grão fino.
- * Em WebGL2 a oclusão de ambiente sai, que é a parte cara.
+ * Em WebGL2 e no perfil `baixo` a oclusão de ambiente sai, que é a parte cara,
+ * e com ela sai o MRT de normais do passe de cena.
  */
 export function buildPostFx(
   renderer: WebGPURenderer,
   scene: Scene,
   camera: PerspectiveCamera,
   backend: Backend,
+  profile: QualityProfile,
 ): PostFx {
   const controls = createControls()
+  const processing = new RenderPipeline(renderer)
+  processing.outputColorTransform = false
+
+  let graph = buildGraph(scene, camera, backend, profile, controls)
+  processing.outputNode = graph.output
+  let width = 0
+  let height = 0
+
+  return {
+    processing,
+    controls,
+    setSize(w, h) {
+      width = w
+      height = h
+      graph.setSize(w, h)
+    },
+    setQuality(next) {
+      graph.dispose()
+      graph = buildGraph(scene, camera, backend, next, controls)
+      if (width && height) graph.setSize(width, height)
+      processing.outputNode = graph.output
+      processing.needsUpdate = true
+    },
+    render() {
+      processing.render()
+    },
+  }
+}
+
+function buildGraph(
+  scene: Scene,
+  camera: PerspectiveCamera,
+  backend: Backend,
+  profile: QualityProfile,
+  controls: PostFxControls,
+): Graph {
+  const useAo = backend === 'webgpu' && profile.ao
 
   const scenePass = pass(scene, camera)
-  scenePass.setMRT(mrt({ output, normal: normalView }))
+  if (useAo) scenePass.setMRT(mrt({ output, normal: normalView }))
 
   const colorNode = scenePass.getTextureNode('output')
-  const depthNode = scenePass.getTextureNode('depth')
-  const normalNode = scenePass.getTextureNode('normal')
 
-  const aoPass = backend === 'webgpu' ? ao(depthNode, normalNode, camera) : null
+  const aoPass = useAo
+    ? ao(scenePass.getTextureNode('depth'), scenePass.getTextureNode('normal'), camera)
+    : null
   if (aoPass) {
     aoPass.distanceExponent.value = 1
     aoPass.distanceFallOff.value = 1
     aoPass.radius.value = 0.3
     aoPass.scale.value = 1
     aoPass.thickness.value = 1
-    aoPass.samples.value = 10
+    aoPass.samples.value = profile.aoSamples
     // Meia resolucao. A oclusao e de baixa frequencia, ninguem percebe.
     aoPass.resolutionScale = 0.5
   }
@@ -137,18 +185,15 @@ export function buildPostFx(
     return vec4(finalColor.clamp(0, 1), displayed.a)
   })()
 
-  const processing = new PostProcessing(renderer)
-  processing.outputColorTransform = false
-  processing.outputNode = graded
-
   return {
-    processing,
-    controls,
+    output: graded,
     setSize(width, height) {
       aoPass?.setSize(width, height)
     },
-    render() {
-      processing.render()
+    dispose() {
+      bloomPass.dispose()
+      aoPass?.dispose()
+      scenePass.dispose()
     },
   }
 }
