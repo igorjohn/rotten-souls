@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Vertical slice de um Souls-like em WebGPU, com arena gerada por código e som sintetizado",
+  "description": "Vertical slice of a Souls-like on WebGPU, with a code-generated arena and synthesised sound",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
